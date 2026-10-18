@@ -1,0 +1,147 @@
+// tests/integration/orders.routes.test.js — POST /api/orders via createApp({ db: fakeDb, options: { now } }) (makeApp).
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import request from 'supertest';
+import { makeApp, validOrder, IDS } from '../helpers/testkit.js';
+
+const post = (app, body) => request(app).post('/api/orders').send(body);
+
+describe('POST /api/orders — caminho feliz', () => {
+  it('201 com código, subtotal recalculado, mensagem e link do WhatsApp; salva o pedido', async () => {
+    const { app, db } = makeApp();
+    const res = await post(app, validOrder());
+
+    assert.equal(res.status, 201);
+    assert.equal(res.body.code, 'BR-0001');
+    assert.equal(res.body.subtotalCents, 5949); // 3499 (mais caro) + 450 + 2 × 1000
+    assert.equal(res.body.whatsappUrl, `https://wa.me/5585997687641?text=${encodeURIComponent(res.body.message)}`);
+
+    assert.equal(db.state.orders.length, 1);
+    const saved = db.state.orders[0];
+    assert.equal(saved.subtotalCents, 5949);
+    assert.equal(saved.status, 'received');
+    // snapshot completo em order_items: ids, base, addons com preço
+    const [pizza, drink] = saved.items;
+    assert.deepEqual(pizza.productIds, [IDS.calabresa, IDS.frango, IDS.bordaCatupiry]);
+    assert.equal(pizza.baseUnitCents, 3499);
+    assert.deepEqual(pizza.addons, [{ name: 'Borda Recheada com Catupiry', priceCents: 450 }]);
+    assert.equal(pizza.unitPriceCents, 3949);
+    assert.deepEqual(drink.productIds, [IDS.coca1lZero]);
+    assert.deepEqual(drink.addons, []);
+    assert.equal(drink.baseUnitCents, 1000);
+  });
+
+  it('IGNORA preços enviados pelo cliente e recalcula do banco', async () => {
+    const { app } = makeApp();
+    const body = validOrder();
+    body.items[0].priceCents = 1;
+    body.items[0].unitPriceCents = 1;
+    body.items[1].priceCents = 1;
+    body.subtotalCents = 1;
+
+    const res = await post(app, body);
+    assert.equal(res.status, 201); // campos extras são descartados (schema sem .strict() nesses pontos)
+    assert.equal(res.body.subtotalCents, 5949);
+  });
+
+  it('retirada não exige endereço', async () => {
+    const { app, db } = makeApp();
+    const { address, ...body } = validOrder({ fulfillment: 'pickup' });
+    const res = await post(app, body);
+    assert.equal(res.status, 201);
+    assert.equal(db.state.orders[0].fulfillment, 'pickup');
+  });
+});
+
+describe('POST /api/orders — 400 VALIDATION_ERROR', () => {
+  const cases = [
+    ['entrega sem endereço', () => { const { address, ...b } = validOrder(); return b; }],
+    ['nome com 1 letra', () => validOrder({ customer: { name: 'J', phone: '85999999999' } })],
+    ['telefone com 9 dígitos', () => validOrder({ customer: { name: 'João', phone: '859999999' } })],
+    ['sem itens', () => validOrder({ items: [] })],
+    ['quantidade 21', () => validOrder({ items: [{ kind: 'drink', productId: IDS.coca600, quantity: 21 }] })],
+    ['sabores repetidos', () => validOrder({ items: [{ kind: 'pizza', flavorIds: [IDS.frango, IDS.frango], addonIds: [], quantity: 1 }] })],
+    ['3 sabores', () => validOrder({ items: [{ kind: 'pizza', flavorIds: [IDS.frango, IDS.bacon, IDS.mista], addonIds: [], quantity: 1 }] })],
+    ['bebida como sabor', () => validOrder({ items: [{ kind: 'pizza', flavorIds: [IDS.coca600], addonIds: [], quantity: 1 }] })],
+    ['pizza como addon', () => validOrder({ items: [{ kind: 'pizza', flavorIds: [IDS.frango], addonIds: [IDS.bacon], quantity: 1 }] })],
+    ['troco menor que o total', () => validOrder({ payment: { method: 'cash', changeForCents: 5000 } })],
+    ['método de pagamento inválido', () => validOrder({ payment: { method: 'boleto' } })],
+    ['observação > 280', () => validOrder({ notes: 'x'.repeat(281) })],
+  ];
+
+  for (const [name, build] of cases) {
+    it(name, async () => {
+      const { app, db } = makeApp();
+      const res = await post(app, build());
+      assert.equal(res.status, 400);
+      assert.equal(res.body.error.code, 'VALIDATION_ERROR');
+      assert.equal(typeof res.body.error.message, 'string');
+      assert.equal(db.state.orders.length, 0, 'não pode salvar pedido inválido');
+    });
+  }
+
+  it('não vaza stack trace', async () => {
+    const { app } = makeApp();
+    const res = await post(app, { lixo: true });
+    assert.equal(res.status, 400);
+    assert.doesNotMatch(JSON.stringify(res.body), /at .*\.js:\d+/);
+  });
+});
+
+describe('POST /api/orders — 409', () => {
+  it('STORE_CLOSED fora do horário', async () => {
+    const { app, db } = makeApp({ now: '2026-10-18T18:00:00Z' }); // domingo 15:00
+    const res = await post(app, validOrder());
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error.code, 'STORE_CLOSED');
+    assert.equal(db.state.orders.length, 0);
+  });
+
+  it('STORE_CLOSED com override "closed" mesmo dentro do horário', async () => {
+    const { app } = makeApp({ settings: { storeOverride: 'closed' } });
+    const res = await post(app, validOrder());
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error.code, 'STORE_CLOSED');
+  });
+
+  it('override "open" aceita pedido fora do horário', async () => {
+    const { app } = makeApp({ now: '2026-10-18T18:00:00Z', settings: { storeOverride: 'open' } });
+    const res = await post(app, validOrder());
+    assert.equal(res.status, 201);
+  });
+
+  it('PRODUCT_UNAVAILABLE quando um sabor está esgotado', async () => {
+    const { app, db } = makeApp();
+    await db.setProductAvailability(IDS.frango, false);
+    const res = await post(app, validOrder());
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error.code, 'PRODUCT_UNAVAILABLE');
+    assert.equal(db.state.orders.length, 0);
+  });
+
+  it('PRODUCT_UNAVAILABLE quando o addon está esgotado', async () => {
+    const { app, db } = makeApp();
+    await db.setProductAvailability(IDS.bordaCatupiry, false);
+    const res = await post(app, validOrder());
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error.code, 'PRODUCT_UNAVAILABLE');
+  });
+});
+
+describe('POST /api/orders — códigos sequenciais', () => {
+  it('BR-0001, BR-0002…', async () => {
+    const { app } = makeApp();
+    assert.equal((await post(app, validOrder())).body.code, 'BR-0001');
+    assert.equal((await post(app, validOrder())).body.code, 'BR-0002');
+  });
+});
+
+describe('POST /api/orders — rate limit', () => {
+  it('11º pedido em 10 min do mesmo IP → 429 RATE_LIMITED', async () => {
+    const { app } = makeApp({ options: { rateLimit: true } }); // só aqui o limiter fica ligado
+    for (let i = 0; i < 10; i += 1) assert.equal((await post(app, validOrder())).status, 201);
+    const res = await post(app, validOrder());
+    assert.equal(res.status, 429);
+    assert.equal(res.body.error.code, 'RATE_LIMITED');
+  });
+});
