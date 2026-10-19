@@ -142,6 +142,38 @@ test('describe nomeia a linha pelo cardápio', () => {
   assert.match(cart.describe(d, menu()), /Coca-Cola 1 Litro/);
 });
 
+test('add rejeita bebida sem productId e trunca observação em 140', () => {
+  const cart = createCart({ storage: makeStorage() });
+  assert.deepEqual(cart.add({ kind: 'drink', quantity: 1 }), { ok: false, reason: 'INVALID_ITEM' });
+  assert.deepEqual(cart.add({ kind: 'pizza', quantity: 1 }), { ok: false, reason: 'INVALID_ITEM' });
+  assert.equal(cart.getItems().length, 0);
+  cart.add(pizza([IDS.mista], { notes: 'x'.repeat(500) }));
+  assert.equal(cart.getItems()[0].notes.length, 140);
+});
+
+test('preço com produto ausente do cardápio não lança: 0 / ignorado no subtotal', () => {
+  const ghost = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+  const storage = makeStorage({ [STORAGE_KEY]: JSON.stringify({ v: 1, items: [
+    { kind: 'pizza', flavorIds: [ghost], addonIds: [], quantity: 1, notes: '' },
+    { kind: 'drink', productId: IDS.coca1l, quantity: 2 },
+  ] }) });
+  const cart = createCart({ storage });
+  const byId = menu();
+  const [bad, good] = cart.getItems();
+  assert.equal(cart.lineTotalCents(bad, byId), 0);
+  assert.equal(cart.unitCents(bad, byId), 0);
+  assert.equal(cart.lineTotalCents(good, byId), 2000);
+  assert.equal(cart.subtotalCents(byId), 2000);
+});
+
+test('setQuantity ignora valor não inteiro', () => {
+  const cart = createCart({ storage: makeStorage() });
+  cart.add(pizza([IDS.mista]));
+  const id = lineId(cart.getItems()[0]);
+  for (const q of [NaN, 1.5, '3', undefined]) cart.setQuantity(id, q);
+  assert.equal(cart.count(), 1);
+});
+
 test('storage corrompido, versão errada ou setItem que lança não quebram', () => {
   for (const raw of ['{', JSON.stringify({ v: 2, items: [{ key: 'x', kind: 'drink', productId: IDS.coca1l, quantity: 1 }] })]) {
     const cart = createCart({ storage: makeStorage({ [STORAGE_KEY]: raw }) });

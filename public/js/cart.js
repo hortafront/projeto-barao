@@ -5,6 +5,7 @@ import { calcPizzaUnitCents, calcItemCents, calcOrderSubtotalCents } from '/shar
 export const STORAGE_KEY = 'barao:cart:v1';
 export const MAX_LINES = 30;
 export const MAX_QTY = 20;
+const MAX_NOTES = 140;
 
 /**
  * Linha persistida:
@@ -34,7 +35,7 @@ function normalize(item) {
     flavorIds: item?.flavorIds,
     addonIds: item?.addonIds ?? [],
     quantity: item?.quantity,
-    notes: typeof item?.notes === 'string' ? item.notes : '',
+    notes: typeof item?.notes === 'string' ? item.notes.slice(0, MAX_NOTES) : '',
   };
   return isIdList(line.flavorIds) && isIdList(line.addonIds) ? { key: lineKey(line), ...line } : { ...line, key: '' };
 }
@@ -70,6 +71,15 @@ export function createCart({ storage = globalThis.localStorage } = {}) {
       quantity: line.quantity,
     });
 
+  const priceable = (line, productsById) => {
+    const ok = (id, kind) => product(productsById, id)?.kind === kind;
+    if (!validQty(line.quantity)) return false;
+    if (line.kind === 'drink') return ok(line.productId, 'drink');
+    return line.kind === 'pizza' && isIdList(line.flavorIds) && isIdList(line.addonIds)
+      && line.flavorIds.length >= 1 && line.flavorIds.length <= 2
+      && line.flavorIds.every((id) => ok(id, 'pizza')) && line.addonIds.every((id) => ok(id, 'addon'));
+  };
+
   // Estrutura válida + todos os ids existem com o kind certo + no máximo 1 addon por addonGroup.
   const isValid = (line, productsById) => {
     const exists = (id, kind) => product(productsById, id)?.kind === kind;
@@ -96,7 +106,7 @@ export function createCart({ storage = globalThis.localStorage } = {}) {
 
     add(item) {
       const next = normalize(item);
-      if (!next.key || !validQty(next.quantity)) return { ok: false, reason: 'INVALID_ITEM' };
+      if (!next.key || !validQty(next.quantity) || (next.kind === 'drink' && typeof next.productId !== 'string')) return { ok: false, reason: 'INVALID_ITEM' };
       const id = lineId(next);
       const existing = items.find((l) => lineId(l) === id);
       if (existing) {
@@ -110,6 +120,7 @@ export function createCart({ storage = globalThis.localStorage } = {}) {
     },
 
     setQuantity(id, quantity) {
+      if (!Number.isInteger(quantity)) return;
       items = quantity < 1
         ? items.filter((l) => lineId(l) !== id)
         : items.map((l) => (lineId(l) === id ? { ...l, quantity: Math.min(MAX_QTY, quantity) } : l));
@@ -131,12 +142,17 @@ export function createCart({ storage = globalThis.localStorage } = {}) {
 
     isBlocked: (productsById) => items.some((l) => isUnavailable(l, productsById)),
 
-    lineTotalCents: (line, productsById) => calcItemCents(toPricingItem(line, productsById)),
+    // Linha com produto ausente/kind errado (carrinho não reconciliado) vale 0; nunca lança.
+    lineTotalCents: (line, productsById) => (priceable(line, productsById)
+      ? calcItemCents(toPricingItem(line, productsById)) : 0),
     unitCents(line, productsById) {
+      if (!priceable(line, productsById)) return 0;
       const p = toPricingItem(line, productsById);
       return p.kind === 'drink' ? p.product.priceCents : calcPizzaUnitCents(p.flavors, p.addons);
     },
-    subtotalCents: (productsById) => calcOrderSubtotalCents(items.map((l) => toPricingItem(l, productsById))),
+    subtotalCents: (productsById) => calcOrderSubtotalCents(
+      items.filter((l) => priceable(l, productsById)).map((l) => toPricingItem(l, productsById)),
+    ),
 
     describe(line, productsById) {
       const name = (id) => productsById.get(id)?.name ?? 'Item indisponível';
