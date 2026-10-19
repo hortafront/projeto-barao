@@ -1,0 +1,210 @@
+/* Barão – painel admin. Só var(--*) de tokens.css; mobile-first; alvos de toque >= 48px. */
+
+:root { --admin-tap: 48px; --admin-nav-h: 56px; }
+
+/* ---------- Estrutura ---------- */
+.admin-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--header-h);
+  padding: 0 var(--gutter);
+  background: var(--color-bg-deep);
+  border-bottom: var(--border-hair);
+}
+.admin-header__tag { flex: 1; color: var(--color-text-muted); font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: var(--tracking-display); }
+
+.admin-main {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-4) var(--gutter) calc(var(--admin-nav-h) + var(--space-6) + env(safe-area-inset-bottom, 0px));
+  outline: none;
+}
+.admin-main h2 { font-size: var(--fs-xl); margin-bottom: var(--space-3); }
+.admin-main h3 { font-size: var(--fs-lg); margin-bottom: var(--space-2); }
+.admin-note { color: var(--color-text-muted); font-size: var(--fs-sm); }
+
+/* ---------- Barra inferior ---------- */
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-cartbar);
+  display: flex;
+  min-height: var(--admin-nav-h);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--color-bg-deep);
+  border-top: var(--border-hair);
+}
+.bottom-nav__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--admin-nav-h);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+}
+.bottom-nav__icon { font-size: var(--fs-lg); line-height: 1; }
+.bottom-nav__item[aria-current="page"] { color: var(--color-accent); box-shadow: inset 0 3px 0 var(--color-accent); }
+
+/* ---------- Faixa de override ---------- */
+.override-banner {
+  padding: var(--space-3) var(--gutter);
+  background: var(--color-danger);
+  color: var(--color-danger-contrast);
+  font-weight: var(--fw-bold);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-display);
+}
+.override-banner--open { background: var(--color-open); color: var(--color-open-contrast); }
+
+/* ---------- Cartões e listas ---------- */
+.admin-card {
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+.admin-card + .admin-card { margin-top: var(--space-3); }
+.admin-card--clickable { display: block; width: 100%; min-height: var(--admin-tap); text-align: left; cursor: pointer; }
+.admin-card--clickable:hover { background: var(--color-surface-hover); }
+
+.admin-list { display: grid; gap: var(--space-3); }
+.admin-list__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--admin-tap);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+}
+.admin-list__row > :first-child { flex-shrink: 0; }
+.admin-list__main { flex: 1; min-width: 0; }
+.admin-list__title { font-weight: var(--fw-semibold); color: var(--color-text-strong); overflow-wrap: anywhere; }
+.admin-list__meta { color: var(--color-text-muted); font-size: var(--fs-sm); }
+.admin-thumb { width: 56px; height: 56px; object-fit: cover; border-radius: var(--radius-sm); background: var(--color-surface-hover); }
+
+/* ---------- Switch (Disponível/Esgotado) ---------- */
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 64px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  border: var(--border-hair);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-hover);
+  transition: background-color var(--dur-base) var(--ease-out);
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  background: var(--color-text-strong);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.switch[aria-checked="true"] { background: var(--color-open); border-color: var(--color-open); }
+.switch[aria-checked="true"]::after { transform: translateX(20px); }
+.switch:disabled { opacity: 0.55; }
+
+/* ---------- Selos de status ---------- */
+.status-pill {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.status-pill--received { background: var(--color-accent); color: var(--color-accent-contrast); }
+.status-pill--confirmed { background: var(--color-open); color: var(--color-open-contrast); }
+.status-pill--canceled { background: var(--color-danger); color: var(--color-danger-contrast); }
+
+/* ---------- Resumo ---------- */
+.stat-block {
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+}
+.stat-block + .stat-block { margin-top: var(--space-3); }
+.stat-block__label { color: var(--color-text-muted); font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: var(--tracking-display); }
+.stat-block__value { font-family: var(--font-display); font-size: var(--fs-3xl); font-weight: var(--fw-bold); color: var(--color-price); line-height: var(--lh-tight); }
+.stat-block__note { color: var(--color-text-muted); font-size: var(--fs-sm); }
+
+/* ---------- Formulários ---------- */
+.form-row { display: grid; gap: var(--space-1); margin-bottom: var(--space-3); }
+.form-row > label { color: var(--color-text-strong); }
+.form-row--inline { grid-auto-flow: column; align-items: center; justify-content: start; gap: var(--space-3); }
+.form-help { color: var(--color-text-muted); font-size: var(--fs-sm); }
+.form-notice { padding: var(--space-3); background: var(--color-bg-deep); border: var(--border-hair); border-radius: var(--radius-md); color: var(--color-text-strong); }
+.admin-main input[type="time"], .admin-main input[type="date"], .admin-main input[type="file"] {
+  min-height: var(--admin-tap);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-deep);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+  color: var(--color-text-strong);
+}
+input[type="checkbox"], input[type="radio"] { width: 24px; height: 24px; accent-color: var(--color-accent); }
+
+/* ---------- Radio cards (Loja) ---------- */
+.radio-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--admin-tap);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.radio-card + .radio-card { margin-top: var(--space-3); }
+.radio-card:has(input:checked) { border-color: var(--color-accent); box-shadow: var(--frame-inset); }
+.radio-card:has(input:focus-visible) { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+
+/* ---------- Botões ---------- */
+.admin-main .btn, .admin-header .btn, .confirm-dialog .btn, .login .btn { min-height: var(--admin-tap); }
+.btn--small { padding: var(--space-2) var(--space-4); }
+.btn--block { display: flex; width: 100%; }
+.btn--danger { background: var(--color-danger); border-color: var(--color-danger); color: var(--color-danger-contrast); }
+.btn--danger:hover, .btn--danger:focus-visible { background: var(--brick-700); }
+
+/* ---------- Login ---------- */
+.login { max-width: 24rem; margin: 0 auto; padding: var(--space-7) var(--gutter); }
+.login__title { margin-bottom: var(--space-5); text-align: center; font-size: var(--fs-2xl); }
+.login-form .btn { margin-top: var(--space-3); }
+
+/* ---------- Diálogo de confirmação e toast ---------- */
+.confirm-dialog { margin: auto; }
+.confirm-dialog__inner { display: grid; gap: var(--space-3); padding: var(--space-5); }
+.confirm-dialog__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-3); }
+.theme-admin .toast { bottom: calc(var(--admin-nav-h) + var(--space-4) + env(safe-area-inset-bottom, 0px)); }
+.toast--success { border-color: var(--color-open); }
+.toast--error { border-color: var(--color-danger); }
+
+@media (min-width: 768px) {
+  .bottom-nav { justify-content: center; }
+  .bottom-nav__item { max-width: 8rem; }
+}
