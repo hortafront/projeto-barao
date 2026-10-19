@@ -75,7 +75,7 @@ Nada de `onclick=""` inline nem `<script>` inline (CSP do helmet permite só `se
 │               R$ 30,49          [ + ]     │  ← botão 44×44, aria-label="Adicionar Mista"
 └───────────────────────────────────────────┘
 ```
-- `<article class="product-card">` com `<h3>` do nome. Imagem: `loading="lazy" decoding="async" width height` + `alt=""` (decorativa: nome já está no texto). Sem `imageUrl` → ilustração padrão `/img/pizza-placeholder.webp`.
+- `<article class="product-card">` com `<h3>` do nome. Imagem: `loading="lazy" decoding="async" width height` + `alt=""` (decorativa: nome já está no texto). **Sem `imageUrl` (estado atual de todos os produtos: o dono ainda vai enviar as fotos)** → placeholder em SVG inline na identidade, nunca `<img>` quebrada: `<svg><use href="#ph-pizza">` (pizza) ou `#ph-drink` (garrafa), símbolos definidos num `<svg hidden>` do `index.html`; fundo `var(--color-surface-hover)`, traço/ornamento `var(--color-accent)`, moldura fina como o resto do card; 88×88, `aria-hidden="true"`. Foto que falhar ao carregar (`error`) cai no mesmo placeholder. O layout do card é idêntico com ou sem foto.
 - Pizza: clique no card/botão abre o modal. Bebida: botão adiciona direto (quantidade 1) + toast "Coca-Cola 600ml adicionada".
 - Esgotado (`available=false`): card com `opacity` reduzida, foto em `grayscale`, selo "ESGOTADO" (tijolo), botão `disabled` com `aria-label="Mista esgotada"`. Continua visível (cliente sabe que existe).
 - Loja fechada: cards visíveis; botão adicionar habilitado (pode montar), mas checkout bloqueado com aviso.
@@ -110,7 +110,7 @@ Nada de `onclick=""` inline nem `<script>` inline (CSP do helmet permite só `se
 | Telefone | `type="tel" inputmode="numeric" autocomplete="tel-national"`, máscara `(85) 99999-9999` | `customer.phone` só dígitos (10–11) |
 | Entrega/Retirada | radios `delivery`/`pickup` | `fulfillment` |
 | Endereço | visível + required só com `delivery`: Rua, Número, Bairro, Referência (opcional) | `address` (omitir no pickup) |
-| Pagamento | radios Pix / Dinheiro / Cartão (maquininha) | `payment.method` |
+| Pagamento | radios Pix / Dinheiro / Cartão (maquininha). Com **Pix** marcado, mostrar abaixo a nota "A chave Pix será enviada pelo WhatsApp após o pedido" (o site **não exibe chave Pix**) | `payment.method` |
 | Troco para | só com `cash`, opcional, `inputmode="decimal"`, `parseBRLToCents`, ≥ subtotal | `payment.changeForCents` |
 | Observações | `maxlength=280` | `notes` |
 
@@ -121,6 +121,7 @@ Nada de `onclick=""` inline nem `<script>` inline (CSP do helmet permite só `se
 ## Confirmação
 - Ornamento + "Pedido recebido!" (script) + código grande `BR-0427` (`--fs-3xl`, display, dourado).
 - Instrução: "Toque no botão para enviar o pedido pelo WhatsApp. O pedido só é confirmado pela loja no WhatsApp."
+- Se o pagamento for Pix: repetir o aviso "A chave Pix será enviada pelo WhatsApp após o pedido".
 - Botão primário `<a href="{whatsappUrl}" rel="noopener">Abrir WhatsApp</a>` (criado com `el()`).
 - Ao receber o 201: limpar carrinho → renderizar esta tela → `window.location.href = whatsappUrl` (mesma aba, não é bloqueado). Nunca `window.open` depois de `await`. O botão serve de fallback para quem voltar.
 - Botão secundário "Fazer novo pedido".

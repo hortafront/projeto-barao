@@ -775,7 +775,7 @@ Como `order_items` guarda `description`, `base_unit_cents`, `addons` (com preço
 | `js/app.js` | Bootstrap: busca `/api/menu` e `/api/status` em paralelo, inicializa módulos, roteia estados (carregando, erro, fechado) |
 | `js/api.js` | `fetch` com timeout (10 s), parse do formato de erro único, retorna `{ ok, data }` ou `{ ok: false, error }` |
 | `js/dom.js` | Helpers `el(tag, attrs, ...children)`, `text()`, `clear()`; **única forma** de criar DOM com dados (sem `innerHTML`) |
-| `js/menu.js` | Renderiza categorias/produtos, selo "Esgotado", imagens `loading="lazy"` com `width/height` |
+| `js/menu.js` | Renderiza categorias/produtos, selo "Esgotado", imagens `loading="lazy"` com `width/height`; `imageUrl` `null` → placeholder SVG inline |
 | `js/product-modal.js` | Modal de pizza (inteira/meio a meio, 2º sabor, addons, quantidade, observação, preço ao vivo) |
 | `js/cart.js` | Estado do carrinho, persistência em `localStorage`, reconciliação com o menu, totais via `shared/pricing.js` |
 | `js/checkout.js` | Formulário, validação leve, envio do pedido, tratamento de erros, redirecionamento ao WhatsApp |
@@ -813,9 +813,9 @@ Guarda **somente ids, quantidades e observações** — nunca preços nem nomes:
 
 ### 10.4 Checkout
 
-Campos: nome, telefone (`inputmode="tel"`, máscara leve), entrega/retirada (rádios), endereço (rua, número, bairro, referência — visível só em entrega), pagamento (rádios Pix / Dinheiro / Cartão), "Precisa de troco? Troco para R$" (só em dinheiro, `inputmode="decimal"`, convertido com `parseBRLToCents`), observações do pedido.
+Campos: nome, telefone (`inputmode="tel"`, máscara leve), entrega/retirada (rádios), endereço (rua, número, bairro, referência — visível só em entrega), pagamento (rádios Pix / Dinheiro / Cartão; com Pix marcado aparece a nota "A chave Pix será enviada pelo WhatsApp após o pedido" — o site **não exibe chave Pix**), "Precisa de troco? Troco para R$" (só em dinheiro, `inputmode="decimal"`, convertido com `parseBRLToCents`), observações do pedido.
 
-Resumo com subtotal e o aviso "Taxa de entrega a combinar pelo WhatsApp" (só em entrega). Botão "Enviar pedido pelo WhatsApp" fica em estado de carregamento e desabilitado durante o envio (evita pedido duplicado).
+Resumo com subtotal e o aviso "Taxa de entrega a combinar pelo WhatsApp" (só em entrega). Botão "Enviar pedido pelo WhatsApp" fica em estado de carregamento e desabilitado durante o envio (evita pedido duplicado). Na tela de confirmação, se o pagamento for Pix, repete o aviso da chave Pix pelo WhatsApp. A mensagem do WhatsApp não muda: `*Pagamento:* Pix`.
 
 ### 10.5 Estados
 
@@ -902,6 +902,7 @@ Rotas `/api/*` inexistentes → `404 NOT_FOUND` no mesmo formato.
 - Sem framework, sem bundler; JS modular servido estático com `Cache-Control` adequado (versão por query string em deploy).
 - Fontes Google com `preconnect` e `display=swap`, apenas pesos usados.
 - Imagens webp, `loading="lazy"`, `decoding="async"`, `width`/`height` definidos; placeholder leve quando `imageUrl` é `null`.
+- **Fotos ainda não existem** (o dono enviará depois): o MVP nasce com `image_url = null` em todos os produtos e precisa ficar bonito assim. Sem foto → **SVG inline** na identidade (pizza para `kind='pizza'`, garrafa para `kind='drink'`, via `<use href="#ph-pizza|#ph-drink">` de um sprite no `index.html`), cores só por tokens CSS, `aria-hidden`, mesmo 88×88 do thumb — nunca `<img>` quebrada; foto que falhar no `error` cai no mesmo placeholder. Upload posterior pelo painel.
 - `/api/menu` e `/api/status` buscados em paralelo; compressão gzip/brotli fica a cargo do proxy da hospedagem.
 - CSS crítico pequeno; nenhum recurso bloqueante de terceiros na página pública.
 
@@ -1034,10 +1035,11 @@ projeto-barao/
 
 **Em aberto (dependem do dono — ver BRIEFING, seção 12)**
 
-- Exibir ou não a chave Pix.
-- Domínio, fotos e arquivos de marca.
+- **Número do WhatsApp definitivo (PENDENTE):** seed/valor atual `5585997687641`; vem sempre de `settings.whatsapp_number` e deve ser alterável. `PUT /api/admin/settings` aceita só `storeOverride`, então a troca é por SQL (`update public.settings set whatsapp_number = '…' where id = 1;`); edição pelo painel é melhoria futura (não muda a API no MVP).
+- **Fotos:** ainda não existem; o dono enviará depois. Até lá placeholder (seção 14); upload pelo painel.
+- Domínio e arquivos de marca.
 
-**Respondidas pelo dono:** no máximo uma borda por pizza (`addon_group = 'borda'`; Catupiry por cima livre); Marguerita R$ 34,90 confirmado; dias e horário de funcionamento (18:00–23:30 em seg, qui, sex, sáb e dom; ter/qua fechadas); meio a meio pode misturar clássica com especial (cobra o sabor mais caro); adicionais (uma borda no máximo + Catupiry por cima) valem também na meio a meio; `ADMIN_EMAILS=guslolhorta@gmail.com`.
+**Respondidas pelo dono:** no máximo uma borda por pizza (`addon_group = 'borda'`; Catupiry por cima livre); Marguerita R$ 34,90 confirmado; dias e horário de funcionamento (18:00–23:30 em seg, qui, sex, sáb e dom; ter/qua fechadas); meio a meio pode misturar clássica com especial (cobra o sabor mais caro); adicionais (uma borda no máximo + Catupiry por cima) valem também na meio a meio; `ADMIN_EMAILS=guslolhorta@gmail.com`; **Pix: o site não exibe chave** — a pizzaria envia a chave pelo WhatsApp após receber o pedido (aviso no checkout/confirmação; mensagem continua `*Pagamento:* Pix`).
 
 **Em aberto (técnicas, para revisar após o MVP)**
 

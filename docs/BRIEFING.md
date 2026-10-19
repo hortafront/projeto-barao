@@ -126,7 +126,7 @@ Pizza em **tamanho único**. Valores em reais.
 5. **Taxa de entrega não é calculada pelo site.** A mensagem informa "Taxa de entrega a combinar" e o atendente combina pelo WhatsApp.
 6. **Retirada no balcão:** sem taxa e sem endereço.
 7. **Pagamento:**
-   - **Pix** — combinado no WhatsApp.
+   - **Pix** — o site **não exibe chave Pix**. Ao escolher Pix, o checkout avisa "A chave Pix será enviada pelo WhatsApp após o pedido" e a pizzaria envia a chave pelo WhatsApp depois de receber o pedido (confirmado pelo dono).
    - **Dinheiro** — o cliente pode informar "troco para R$ X"; o valor X precisa ser maior ou igual ao subtotal do pedido.
    - **Cartão** — na maquininha, na entrega ou na retirada.
    - Não há pagamento online no site.
@@ -176,7 +176,7 @@ Exemplos: "Bateu a fome? Monte sua pizza.", "Ops, essa acabou por hoje.", "Estam
 
 ### 9.1 Dentro do MVP
 
-- Cardápio público responsivo (mobile-first) com categorias, fotos, descrições, preços e selo "Esgotado".
+- Cardápio público responsivo (mobile-first) com categorias, fotos (placeholder na identidade visual enquanto não houver), descrições, preços e selo "Esgotado".
 - Indicador de loja aberta/fechada e bloqueio de pedidos fora do horário.
 - Montagem de pizza inteira ou meio a meio, com adicionais, quantidade e observação.
 - Carrinho que fica salvo no aparelho (sobrevive a recarregar a página).
@@ -214,7 +214,7 @@ Exemplos: "Bateu a fome? Monte sua pizza.", "Ops, essa acabou por hoje.", "Estam
 - O cliente tem WhatsApp instalado no celular (ou WhatsApp Web no computador).
 - O atendimento continua no WhatsApp; o site organiza o pedido, mas a confirmação final é humana.
 - A taxa de entrega é combinada caso a caso.
-- O Barão fornecerá fotos e o horário real de abertura/fechamento (os dias e o e-mail do painel já foram informados).
+- O Barão fornecerá fotos (ainda não existem; até lá o site usa placeholder) e o número definitivo do WhatsApp, além do horário real de abertura/fechamento (os dias e o e-mail do painel já foram informados).
 - Hospedagem em serviço gerenciado (servidor Node + Supabase), com custo baixo ou gratuito no início.
 
 ### Riscos
@@ -231,11 +231,10 @@ Exemplos: "Bateu a fome? Monte sua pizza.", "Ops, essa acabou por hoje.", "Estam
 
 ## 12. Pendências a confirmar com o dono
 
-> **Já respondido pelo dono:** no máximo uma borda por pizza (Catupiry por cima é livre); Marguerita R$ 34,90 confirmado; dias e horário de funcionamento (18:00–23:30 em seg, qui, sex, sáb e dom; fechado terça e quarta); meio a meio pode misturar Clássica com Especial (cobra o sabor mais caro); adicionais (uma borda no máximo + Catupiry por cima) valem também na meio a meio; e-mail do painel `guslolhorta@gmail.com`.
+> **Já respondido pelo dono:** no máximo uma borda por pizza (Catupiry por cima é livre); Marguerita R$ 34,90 confirmado; dias e horário de funcionamento (18:00–23:30 em seg, qui, sex, sáb e dom; fechado terça e quarta); meio a meio pode misturar Clássica com Especial (cobra o sabor mais caro); adicionais (uma borda no máximo + Catupiry por cima) valem também na meio a meio; e-mail do painel `guslolhorta@gmail.com`; **Pix: o site não exibe chave** — a pizzaria envia a chave pelo WhatsApp após receber o pedido (checkout mostra o aviso; a mensagem segue `*Pagamento:* Pix`).
 
-1. **Chave Pix:** deseja exibir a chave Pix no site/mensagem ou prefere enviar pelo WhatsApp? Se exibir, qual chave e em nome de quem.
-2. **Fotos dos produtos:** fotos próprias de cada pizza e bebida (ideal: quadradas, boa luz, ≥ 800 px). Enquanto não houver, usaremos imagem padrão com a identidade visual.
-3. **Domínio:** usará domínio próprio (ex.: `pizzariabarao.com.br`) ou subdomínio da hospedagem? Quem registra?
-4. **Logo e mascote em arquivo** (vetor ou PNG em alta resolução) para uso no site.
-5. **Número do WhatsApp** (85) 99768-7641 é o definitivo para receber pedidos?
-6. **Bairros atendidos:** há bairros onde não entregam? (O MVP não bloqueia por bairro; serviria para um aviso no checkout.)
+1. **Fotos dos produtos:** ainda não existem — o dono enviará depois (ideal: quadradas, boa luz, ≥ 800 px). Até lá, o site funciona sem fotos com placeholder na identidade visual (ilustração de pizza/garrafa); quando chegarem, o upload é feito pelo painel.
+2. **Domínio:** usará domínio próprio (ex.: `pizzariabarao.com.br`) ou subdomínio da hospedagem? Quem registra?
+3. **Logo e mascote em arquivo** (vetor ou PNG em alta resolução) para uso no site.
+4. **Número do WhatsApp (PENDENTE):** o dono ainda vai enviar o número definitivo. Até lá vale `5585997687641` — (85) 99768-7641 — como valor atual/seed. O número vem de `settings.whatsapp_number` (nunca fixo no código) e é alterável; como o painel hoje só altera o modo da loja, a troca é feita por SQL (`update settings set whatsapp_number = '55DDDNUMERO' where id = 1;`). Editar pelo painel fica como melhoria futura.
+5. **Bairros atendidos:** há bairros onde não entregam? (O MVP não bloqueia por bairro; serviria para um aviso no checkout.)

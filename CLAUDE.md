@@ -104,6 +104,8 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 5. **Taxa de entrega não é calculada**: mensagem diz "Taxa de entrega a combinar". Retirada: sem taxa, sem endereço.
    Endereço obrigatório só em `delivery`.
 6. Pagamento `pix` | `cash` | `card`. Troco (`changeForCents`) só em `cash`, opcional, e deve ser **>= total do pedido**.
+   O site **não exibe chave Pix**: com Pix, o checkout avisa "A chave Pix será enviada pelo WhatsApp após o pedido"
+   (a loja envia a chave depois); a mensagem continua `*Pagamento:* Pix`.
 7. Loja fechada (horário em `business_hours` + `settings.store_override` `auto|open|closed`) → **409 `STORE_CLOSED`**.
    Turno com `closes_at <= opens_at` vira a meia-noite (ex.: 18:00→00:30). Horário **confirmado pelo dono**:
    18:00–23:30 em seg, qui, sex, sáb e dom; **fechado ter e qua** (é o seed de `business_hours`).
@@ -184,6 +186,7 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 - Calcular frete, pagamento online, cupons, login de cliente: **fora do escopo do MVP**.
 
 ## Pendências conhecidas
-- **Fotos** dos produtos (subir pelo admin; até lá, placeholder).
+- **Fotos** dos produtos: ainda não existem; o dono enviará depois (upload pelo admin). Até lá `image_url = null` → placeholder SVG inline na identidade (nunca imagem quebrada).
+- **Número do WhatsApp definitivo**: dono ainda vai enviar. Valor atual/seed `5585997687641` em `settings.whatsapp_number` (alterável; hoje via SQL `update settings set whatsapp_number = ... where id = 1`, pois `PUT /api/admin/settings` só aceita `storeOverride`).
 - **Domínio** e hospedagem (define `CORS_ORIGIN` e CSP).
 - **Usuário admin no Supabase Auth**: criar `guslolhorta@gmail.com` (Auth → Users) no deploy.

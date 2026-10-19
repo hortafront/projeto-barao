@@ -25,6 +25,8 @@ Contrato de nomes/rotas: `CLAUDE.md`. Preço: skill `barao-cardapio-precos`. Pay
 7. **Acessibilidade**: `lang="pt-BR"`; contraste AA (corpo em creme, dourado só em títulos/preços/CTA); alvos ≥ 44px (`--tap-min`); `:focus-visible` com contorno `--color-focus`; modais com `<dialog>.showModal()` (foco preso + Esc) e foco devolvido; total em `aria-live="polite"`; estados nunca só por cor; `prefers-reduced-motion` respeitado.
 8. **Performance**: imagens `.webp` com `loading="lazy" decoding="async" width height`; Google Fonts com `display=swap` e `preconnect`; zero dependências; nenhum `<script>`/`style=""` inline (CSP `self`).
 9. **Categoria `adicionais`** não aparece como seção: addons só no modal da pizza.
+10. **Sem foto é o estado normal (por ora):** o dono ainda não enviou fotos, então `imageUrl` é `null` em todos os produtos. Nunca renderizar `<img>` com `src` nulo/vazio nem ícone de imagem quebrada: `imageUrl === null` → placeholder em **SVG inline** na identidade (pizza para `kind='pizza'`, garrafa para `kind='drink'`), cores só via tokens (`fill`/`stroke` por classe CSS com `var(--*)`), `aria-hidden="true"`, mesmo tamanho do thumb (88×88, sem layout shift). Se a foto existir mas falhar (`onerror`), trocar pelo mesmo placeholder. O cardápio tem de ficar bonito 100% sem fotos.
+11. **Pix:** o site **não exibe chave Pix**. Com Pix selecionado no checkout e na confirmação, mostrar o aviso "A chave Pix será enviada pelo WhatsApp após o pedido". A mensagem do WhatsApp continua só `*Pagamento:* Pix`.
 
 ## Módulos (`public/js/`)
 | Arquivo | Responsabilidade |
@@ -79,8 +81,7 @@ export function productCard(product, { onOpenPizza, onAddDrink }) {
   const soldOut = !product.available;
   const action = product.kind === 'pizza' ? () => onOpenPizza(product) : () => onAddDrink(product);
   return el('article', { class: `product-card${soldOut ? ' is-soldout' : ''}` },
-    el('img', { class: 'product-card__img', src: product.imageUrl ?? '/img/pizza-placeholder.webp',
-      alt: '', width: 88, height: 88, loading: 'lazy', decoding: 'async' }),
+    productThumb(product),
     el('div', { class: 'product-card__body' },
       el('h3', { class: 'product-card__name' }, product.name),
       product.description && el('p', { class: 'product-card__desc' }, product.description),
@@ -89,6 +90,28 @@ export function productCard(product, { onOpenPizza, onAddDrink }) {
         soldOut && el('span', { class: 'badge badge--soldout' }, 'Esgotado'),
         el('button', { type: 'button', class: 'btn-icon', disabled: soldOut, onclick: action,
           'aria-label': soldOut ? `${product.name} esgotado` : `Adicionar ${product.name}` }, '+'))));
+}
+
+// Placeholder: <symbol id="ph-pizza"> e <symbol id="ph-drink"> num <svg hidden> do index.html
+// (sprite inline, cores por classe CSS com tokens, ex.: fundo `var(--color-surface-hover)`, traço `var(--color-accent)`).
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function placeholder(kind) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'product-card__img product-card__img--placeholder');
+  svg.setAttribute('width', '88'); svg.setAttribute('height', '88');
+  svg.setAttribute('viewBox', '0 0 88 88'); svg.setAttribute('aria-hidden', 'true');
+  const use = document.createElementNS(SVG_NS, 'use');
+  use.setAttribute('href', kind === 'drink' ? '#ph-drink' : '#ph-pizza');
+  svg.append(use);
+  return svg;
+}
+
+function productThumb(product) {
+  if (!product.imageUrl) return placeholder(product.kind); // null hoje: fotos ainda não existem
+  const img = el('img', { class: 'product-card__img', src: product.imageUrl,
+    alt: '', width: 88, height: 88, loading: 'lazy', decoding: 'async' });
+  img.addEventListener('error', () => img.replaceWith(placeholder(product.kind)), { once: true });
+  return img;
 }
 ```
 
