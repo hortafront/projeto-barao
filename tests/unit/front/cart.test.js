@@ -166,6 +166,18 @@ test('preço com produto ausente do cardápio não lança: 0 / ignorado no subto
   assert.equal(cart.subtotalCents(byId), 2000);
 });
 
+test('add rejeita pizza com estrutura que o servidor recusaria', () => {
+  const cart = createCart({ storage: makeStorage() });
+  const invalid = { ok: false, reason: 'INVALID_ITEM' };
+  assert.deepEqual(cart.add(pizza([IDS.mista, IDS.calabresa, IDS.frango])), invalid);
+  assert.deepEqual(cart.add(pizza([])), invalid);
+  assert.deepEqual(cart.add(pizza([IDS.mista, IDS.mista])), invalid);
+  assert.deepEqual(cart.add(pizza([IDS.mista], { addonIds: [IDS.catupiryCima, IDS.catupiryCima] })), invalid);
+  assert.deepEqual(cart.add(pizza([IDS.mista], { addonIds: Array.from({ length: 11 }, (_, i) => `a${i}`) })), invalid);
+  assert.equal(cart.getItems().length, 0);
+  assert.deepEqual(cart.add(pizza([IDS.mista, IDS.frango], { addonIds: [IDS.catupiryCima] })), { ok: true });
+});
+
 test('setQuantity ignora valor não inteiro', () => {
   const cart = createCart({ storage: makeStorage() });
   cart.add(pizza([IDS.mista]));

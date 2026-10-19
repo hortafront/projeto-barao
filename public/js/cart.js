@@ -6,6 +6,7 @@ export const STORAGE_KEY = 'barao:cart:v1';
 export const MAX_LINES = 30;
 export const MAX_QTY = 20;
 const MAX_NOTES = 140;
+const MAX_ADDONS = 10;
 
 /**
  * Linha persistida:
@@ -24,6 +25,16 @@ export const lineId = (line) => `${line.key}|n:${line.notes ?? ''}`;
 
 const isIdList = (v) => Array.isArray(v) && v.every((x) => typeof x === 'string' && x);
 const validQty = (q) => Number.isInteger(q) && q >= 1 && q <= MAX_QTY;
+
+// Estrutura que o servidor aceita (sem checar existência no cardápio nem formato de UUID).
+const distinct = (ids) => new Set(ids).size === ids.length;
+function hasValidShape(line) {
+  if (!validQty(line?.quantity)) return false;
+  if (line.kind === 'drink') return typeof line.productId === 'string' && line.productId !== '';
+  return line.kind === 'pizza' && isIdList(line.flavorIds) && isIdList(line.addonIds)
+    && line.flavorIds.length >= 1 && line.flavorIds.length <= 2 && distinct(line.flavorIds)
+    && line.addonIds.length <= MAX_ADDONS && distinct(line.addonIds);
+}
 
 function normalize(item) {
   if (item?.kind === 'drink') {
@@ -72,25 +83,16 @@ export function createCart({ storage = globalThis.localStorage } = {}) {
     });
 
   const priceable = (line, productsById) => {
+    if (!hasValidShape(line)) return false;
     const ok = (id, kind) => product(productsById, id)?.kind === kind;
-    if (!validQty(line.quantity)) return false;
     if (line.kind === 'drink') return ok(line.productId, 'drink');
-    return line.kind === 'pizza' && isIdList(line.flavorIds) && isIdList(line.addonIds)
-      && line.flavorIds.length >= 1 && line.flavorIds.length <= 2
-      && line.flavorIds.every((id) => ok(id, 'pizza')) && line.addonIds.every((id) => ok(id, 'addon'));
+    return line.flavorIds.every((id) => ok(id, 'pizza')) && line.addonIds.every((id) => ok(id, 'addon'));
   };
 
   // Estrutura válida + todos os ids existem com o kind certo + no máximo 1 addon por addonGroup.
   const isValid = (line, productsById) => {
-    const exists = (id, kind) => product(productsById, id)?.kind === kind;
-    if (!validQty(line.quantity)) return false;
-    if (line.kind === 'drink') return typeof line.productId === 'string' && exists(line.productId, 'drink');
-    if (line.kind !== 'pizza' || !isIdList(line.flavorIds) || !isIdList(line.addonIds)) return false;
-    if (line.flavorIds.length < 1 || line.flavorIds.length > 2) return false;
-    if (new Set(line.flavorIds).size !== line.flavorIds.length) return false;
-    if (new Set(line.addonIds).size !== line.addonIds.length) return false;
-    if (!line.flavorIds.every((id) => exists(id, 'pizza'))) return false;
-    if (!line.addonIds.every((id) => exists(id, 'addon'))) return false;
+    if (!priceable(line, productsById)) return false;
+    if (line.kind === 'drink') return true;
     const groups = line.addonIds.map((id) => product(productsById, id).addonGroup).filter((g) => g != null);
     return new Set(groups).size === groups.length;
   };
@@ -106,7 +108,7 @@ export function createCart({ storage = globalThis.localStorage } = {}) {
 
     add(item) {
       const next = normalize(item);
-      if (!next.key || !validQty(next.quantity) || (next.kind === 'drink' && typeof next.productId !== 'string')) return { ok: false, reason: 'INVALID_ITEM' };
+      if (!hasValidShape(next)) return { ok: false, reason: 'INVALID_ITEM' };
       const id = lineId(next);
       const existing = items.find((l) => lineId(l) === id);
       if (existing) {
