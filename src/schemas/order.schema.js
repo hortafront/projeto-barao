@@ -71,7 +71,10 @@ export const createOrderSchema = z.discriminatedUnion('fulfillment', [deliveryOr
 // Admin. A ordem from <= to, o limite de 366 dias e o padrão "hoje" ficam no dateRange.service.
 const isoDate = z.string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data no formato AAAA-MM-DD.')
-  .refine((d) => new Date(`${d}T00:00:00Z`).toISOString().startsWith(d), 'Data inexistente.');
+  .refine((d) => {
+    const t = new Date(`${d}T00:00:00Z`);
+    return !Number.isNaN(t.getTime()) && t.toISOString().startsWith(d);
+  }, 'Data inexistente.');
 
 export const summaryQuerySchema = z.object({
   from: isoDate.optional(),

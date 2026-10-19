@@ -77,6 +77,8 @@ test('pedido: dados limpos', () => {
 test('ordersQuerySchema', () => {
   assert.deepEqual(ok(ordersQuerySchema, {}), { page: 1 });
   fails(ordersQuerySchema, { from: '2026-02-31' }, ['from']);
+  fails(ordersQuerySchema, { from: '2026-13-45' }, ['from']);
+  fails(ordersQuerySchema, { to: '2026-00-10' }, ['to']);
   assert.equal(ok(ordersQuerySchema, { page: '2' }).page, 2);
   fails(ordersQuerySchema, { page: 0 }, ['page']);
 });
