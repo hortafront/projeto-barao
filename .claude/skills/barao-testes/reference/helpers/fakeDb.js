@@ -54,8 +54,8 @@ export function seedProducts() {
 }
 
 /**
- * Horário do seed. weekday 0 = domingo. DIAS confirmados pelo dono: abre seg, qui, sex, sáb, dom;
- * FECHA terça (2) e quarta (3). O horário 18:00–23:30 ainda é provisório.
+ * Horário do seed (confirmado pelo dono). weekday 0 = domingo. Abre seg, qui, sex, sáb, dom das 18:00 às 23:30;
+ * FECHA terça (2) e quarta (3).
  */
 export const CLOSED_WEEKDAYS = Object.freeze([2, 3]);
 export function seedHours() {

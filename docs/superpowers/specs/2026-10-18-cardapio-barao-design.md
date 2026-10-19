@@ -435,8 +435,8 @@ from (values
 ) as v(category_slug, kind, name, description, price_cents, sort_order, addon_group)
 join public.categories c on c.slug = v.category_slug;
 
--- Horários (0 = domingo). DIAS confirmados pelo dono: abre seg, qui, sex, sáb, dom; fecha ter (2) e qua (3).
--- HORÁRIO 18:00–23:30 ainda PROVISÓRIO (pendência: confirmar horário de abertura/fechamento).
+-- Horários (0 = domingo). Confirmado pelo dono: abre seg, qui, sex, sáb, dom das 18:00 às 23:30;
+-- fecha ter (2) e qua (3).
 insert into public.business_hours (weekday, opens_at, closes_at, is_closed)
 select d, time '18:00', time '23:30', d in (2, 3)
 from generate_series(0, 6) as d
@@ -1034,13 +1034,10 @@ projeto-barao/
 
 **Em aberto (dependem do dono — ver BRIEFING, seção 12)**
 
-- Horário de abertura/fechamento: os dias estão confirmados (fecha ter e qua), mas 18:00–23:30 do seed é provisório.
 - Exibir ou não a chave Pix.
-- Meio a meio entre clássica e especial (padrão: permitido).
-- Adicionais na meio a meio (padrão: permitido).
 - Domínio, fotos e arquivos de marca.
 
-**Respondidas pelo dono:** no máximo uma borda por pizza (`addon_group = 'borda'`; Catupiry por cima livre); Marguerita R$ 34,90 confirmado; dias de funcionamento (ter/qua fechadas); `ADMIN_EMAILS=guslolhorta@gmail.com`.
+**Respondidas pelo dono:** no máximo uma borda por pizza (`addon_group = 'borda'`; Catupiry por cima livre); Marguerita R$ 34,90 confirmado; dias e horário de funcionamento (18:00–23:30 em seg, qui, sex, sáb e dom; ter/qua fechadas); meio a meio pode misturar clássica com especial (cobra o sabor mais caro); adicionais (uma borda no máximo + Catupiry por cima) valem também na meio a meio; `ADMIN_EMAILS=guslolhorta@gmail.com`.
 
 **Em aberto (técnicas, para revisar após o MVP)**
 

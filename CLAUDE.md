@@ -91,11 +91,13 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
    (`formatBRL` / `Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })`).
 2. **Servidor recalcula todo preço** a partir do banco. Qualquer preço enviado pelo cliente é ignorado.
 3. **Meio a meio = preço do sabor mais caro.** Pizza tem 1 sabor (inteira) ou **exatamente 2 sabores distintos**;
-   todos os `flavorIds` precisam ser `kind='pizza'`. Tamanho único (modelo deve permitir evoluir).
+   todos os `flavorIds` precisam ser `kind='pizza'`. Pode misturar Clássica com Especial (cobra o sabor mais caro) —
+   confirmado pelo dono. Tamanho único (modelo deve permitir evoluir).
 4. **Addons só em pizza**, cada addon **no máximo 1x por pizza**, somam ao unitário da pizza. **No máximo 1 addon de cada
    `addon_group` não nulo por pizza**: as duas bordas (`addon_group = 'borda'`) são mutuamente exclusivas; "Catupiry por
    cima" (`addon_group` null) combina com qualquer borda. Violação → 400 `VALIDATION_ERROR` "Escolha apenas uma borda por pizza"
-   (validado no `pricing.service`).
+   (validado no `pricing.service`). Os addons (incluindo a borda única e o Catupiry por cima) valem também na pizza
+   meio a meio — confirmado pelo dono.
    Total do item (`line_total_cents`) = `unit_price_cents` (sabor mais caro + addons) × quantidade. Na mensagem do
    WhatsApp a linha da pizza mostra só `base_unit_cents × quantity` e cada addon vem em linha própria
    (`   + <nome> — R$ (priceCents × quantity)`).
@@ -103,7 +105,8 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
    Endereço obrigatório só em `delivery`.
 6. Pagamento `pix` | `cash` | `card`. Troco (`changeForCents`) só em `cash`, opcional, e deve ser **>= total do pedido**.
 7. Loja fechada (horário em `business_hours` + `settings.store_override` `auto|open|closed`) → **409 `STORE_CLOSED`**.
-   Turno com `closes_at <= opens_at` vira a meia-noite (ex.: 18:00→00:30).
+   Turno com `closes_at <= opens_at` vira a meia-noite (ex.: 18:00→00:30). Horário **confirmado pelo dono**:
+   18:00–23:30 em seg, qui, sex, sáb e dom; **fechado ter e qua** (é o seed de `business_hours`).
 8. Produto indisponível (`available=false`) ou inexistente no pedido → **409 `PRODUCT_UNAVAILABLE`**.
 9. Fuso **`America/Fortaleza`** (UTC-3, sem horário de verão) em toda conta de horário e filtro de data.
 10. `order_items` guarda **snapshot** completo: `description`, `product_ids uuid[]` (sabores/bebida + addons),
@@ -181,8 +184,6 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 - Calcular frete, pagamento online, cupons, login de cliente: **fora do escopo do MVP**.
 
 ## Pendências conhecidas
-- **Horário de abertura/fechamento**: dias confirmados (abre seg, qui, sex, sáb, dom; fecha ter e qua), mas o horário
-  18:00–23:30 do seed é provisório — confirmar horário de abertura/fechamento com o dono.
 - **Fotos** dos produtos (subir pelo admin; até lá, placeholder).
 - **Domínio** e hospedagem (define `CORS_ORIGIN` e CSP).
 - **Usuário admin no Supabase Auth**: criar `guslolhorta@gmail.com` (Auth → Users) no deploy.

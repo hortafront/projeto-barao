@@ -35,8 +35,8 @@ from (values
 ) as v(category_slug, kind, name, description, price_cents, sort_order, addon_group)
 join public.categories c on c.slug = v.category_slug;
 
--- Horários (weekday 0 = domingo). DIAS confirmados pelo dono: abre seg (1), qui (4), sex (5), sáb (6), dom (0);
--- FECHA terça (2) e quarta (3). O HORÁRIO 18:00–23:30 ainda é PROVISÓRIO (pendência: confirmar abertura/fechamento).
+-- Horários (weekday 0 = domingo). Confirmado pelo dono: abre seg (1), qui (4), sex (5), sáb (6), dom (0)
+-- das 18:00 às 23:30; FECHA terça (2) e quarta (3).
 insert into public.business_hours (weekday, opens_at, closes_at, is_closed)
 select d, time '18:00', time '23:30', d in (2, 3)
 from generate_series(0, 6) as d;

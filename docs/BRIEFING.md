@@ -118,10 +118,10 @@ Pizza em **tamanho único**. Valores em reais.
 ## 7. Regras de negócio
 
 1. **Tamanho único.** Toda pizza tem um só tamanho. O sistema já fica preparado para, no futuro, ter mais tamanhos.
-2. **Inteira ou meio a meio.** A pizza pode ter 1 sabor (inteira) ou exatamente 2 sabores diferentes (meio a meio). Não existe pizza de 3 sabores.
+2. **Inteira ou meio a meio.** A pizza pode ter 1 sabor (inteira) ou exatamente 2 sabores diferentes (meio a meio). Não existe pizza de 3 sabores. **Pode misturar Clássica com Especial** (confirmado pelo dono).
 3. **Preço da meio a meio = preço do sabor mais caro.**
    Ex.: Mussarela (R$ 30,49) + Carne do Sol (R$ 42,99) = **R$ 42,99**.
-4. **Adicionais** valem só para pizzas, somam ao preço **de cada pizza**, e cada adicional pode ser escolhido no máximo uma vez por pizza. **No máximo uma borda por pizza** (Catupiry **ou** Chocolate, nunca as duas); "Catupiry por cima" combina com qualquer borda. Tentar duas bordas é recusado com "Escolha apenas uma borda por pizza".
+4. **Adicionais** valem só para pizzas, somam ao preço **de cada pizza**, e cada adicional pode ser escolhido no máximo uma vez por pizza. **No máximo uma borda por pizza** (Catupiry **ou** Chocolate, nunca as duas); "Catupiry por cima" combina com qualquer borda. Tentar duas bordas é recusado com "Escolha apenas uma borda por pizza". **Os adicionais valem também na pizza meio a meio** (confirmado pelo dono).
    Ex.: 2 pizzas Calabresa/Frango com Borda Recheada com Catupiry = (R$ 34,99 + R$ 4,50) × 2 = **R$ 78,98**.
 5. **Taxa de entrega não é calculada pelo site.** A mensagem informa "Taxa de entrega a combinar" e o atendente combina pelo WhatsApp.
 6. **Retirada no balcão:** sem taxa e sem endereço.
@@ -130,7 +130,7 @@ Pizza em **tamanho único**. Valores em reais.
    - **Dinheiro** — o cliente pode informar "troco para R$ X"; o valor X precisa ser maior ou igual ao subtotal do pedido.
    - **Cartão** — na maquininha, na entrega ou na retirada.
    - Não há pagamento online no site.
-8. **Horário de funcionamento** por dia da semana, com possibilidade de turno que passa da meia-noite (ex.: 18:00 às 00:30). **Dias confirmados:** abre segunda, quinta, sexta, sábado e domingo; **fechado terça e quarta** (horário 18:00–23:30 ainda provisório). O admin pode forçar a loja **aberta** ou **fechada**. **Pedidos fora do horário são recusados** pelo sistema, com mensagem amigável e o próximo horário de abertura.
+8. **Horário de funcionamento** por dia da semana, com possibilidade de turno que passa da meia-noite (ex.: 18:00 às 00:30). **Confirmado pelo dono:** abre segunda, quinta, sexta, sábado e domingo, das **18:00 às 23:30**; **fechado terça e quarta**. O admin pode forçar a loja **aberta** ou **fechada**. **Pedidos fora do horário são recusados** pelo sistema, com mensagem amigável e o próximo horário de abertura.
 9. **Itens esgotados** continuam aparecendo no cardápio, marcados como "Esgotado", e não podem ser pedidos.
 10. **Preço sempre vem do cadastro.** Mesmo que alguém altere a página no navegador, o servidor recalcula tudo a partir do cardápio salvo.
 11. **Código do pedido** sequencial no formato `BR-0001`, `BR-0002`…, citado na mensagem do WhatsApp para facilitar a conversa.
@@ -231,14 +231,11 @@ Exemplos: "Bateu a fome? Monte sua pizza.", "Ops, essa acabou por hoje.", "Estam
 
 ## 12. Pendências a confirmar com o dono
 
-> **Já respondido pelo dono:** no máximo uma borda por pizza (Catupiry por cima é livre); Marguerita R$ 34,90 confirmado; dias de funcionamento (fechado terça e quarta); e-mail do painel `guslolhorta@gmail.com`.
+> **Já respondido pelo dono:** no máximo uma borda por pizza (Catupiry por cima é livre); Marguerita R$ 34,90 confirmado; dias e horário de funcionamento (18:00–23:30 em seg, qui, sex, sáb e dom; fechado terça e quarta); meio a meio pode misturar Clássica com Especial (cobra o sabor mais caro); adicionais (uma borda no máximo + Catupiry por cima) valem também na meio a meio; e-mail do painel `guslolhorta@gmail.com`.
 
-1. **Horário de abertura/fechamento:** os **dias** já estão confirmados (abre segunda, quinta, sexta, sábado e domingo; **fecha terça e quarta**). Falta confirmar o **horário** — o sistema nasce com 18:00–23:30 nos dias abertos apenas como valor provisório. Algum turno passa da meia-noite?
-2. **Chave Pix:** deseja exibir a chave Pix no site/mensagem ou prefere enviar pelo WhatsApp? Se exibir, qual chave e em nome de quem.
-3. **Fotos dos produtos:** fotos próprias de cada pizza e bebida (ideal: quadradas, boa luz, ≥ 800 px). Enquanto não houver, usaremos imagem padrão com a identidade visual.
-4. **Domínio:** usará domínio próprio (ex.: `pizzariabarao.com.br`) ou subdomínio da hospedagem? Quem registra?
-5. **Meio a meio entre Clássica e Especial:** pode misturar (ex.: Mussarela + Carne do Sol)? **Padrão adotado: sim**, cobrando o sabor mais caro.
-6. **Adicionais na meio a meio:** valem para pizza meio a meio? **Padrão adotado: sim.**
-7. **Logo e mascote em arquivo** (vetor ou PNG em alta resolução) para uso no site.
-8. **Número do WhatsApp** (85) 99768-7641 é o definitivo para receber pedidos?
-9. **Bairros atendidos:** há bairros onde não entregam? (O MVP não bloqueia por bairro; serviria para um aviso no checkout.)
+1. **Chave Pix:** deseja exibir a chave Pix no site/mensagem ou prefere enviar pelo WhatsApp? Se exibir, qual chave e em nome de quem.
+2. **Fotos dos produtos:** fotos próprias de cada pizza e bebida (ideal: quadradas, boa luz, ≥ 800 px). Enquanto não houver, usaremos imagem padrão com a identidade visual.
+3. **Domínio:** usará domínio próprio (ex.: `pizzariabarao.com.br`) ou subdomínio da hospedagem? Quem registra?
+4. **Logo e mascote em arquivo** (vetor ou PNG em alta resolução) para uso no site.
+5. **Número do WhatsApp** (85) 99768-7641 é o definitivo para receber pedidos?
+6. **Bairros atendidos:** há bairros onde não entregam? (O MVP não bloqueia por bairro; serviria para um aviso no checkout.)

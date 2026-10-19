@@ -33,7 +33,7 @@ altura 56px + safe-area. Aba inicial: **Pedidos** (o que o dono mais olha no exp
 
 ## Horários
 - 7 linhas Domingo → Sábado (`weekday` 0..6, 0 = domingo): checkbox "Fechado", `<input type="time">` abre / fecha.
-- Seed (dias confirmados pelo dono): terça e quarta vêm com "Fechado" marcado; demais 18:00–23:30 (horário provisório — o dono ajusta aqui).
+- Seed (confirmado pelo dono): terça e quarta vêm com "Fechado" marcado; demais 18:00–23:30 (o dono pode ajustar aqui se mudar).
 - Se fecha ≤ abre: mostrar dica "Vira a meia-noite: fecha às 00:30 do dia seguinte" (válido, não é erro). Abre = fecha → erro.
 - Botão "Copiar para todos os dias" a partir da linha de domingo. Um único "Salvar horários" → `PUT /api/admin/hours` com os 7 dias.
 - Rodapé informativo: "Horário de Fortaleza (UTC−3)".

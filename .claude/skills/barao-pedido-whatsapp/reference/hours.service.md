@@ -115,7 +115,7 @@ Horário **de teste** (fixture, não é o seed): 18:00–00:30 em todos os dias,
 | `2026-10-20T03:10:00Z` | ter 00:10 | **fechado** (segunda fechada, não há turno de ontem) |
 | qualquer | — | override `'open'` → aberto; `'closed'` → fechado, `nextOpenAt null` |
 
-A tabela acima usa um horário **de teste** (não o seed). Com o **seed** (dias confirmados: abre seg, qui, sex, sáb, dom; **fecha ter e qua**; horário 18:00–23:30 ainda provisório):
+A tabela acima usa um horário **de teste** (não o seed). Com o **seed** (confirmado pelo dono: abre seg, qui, sex, sáb, dom das 18:00 às 23:30; **fecha ter e qua**):
 
 | Instante UTC | Local Fortaleza | Esperado |
 |---|---|---|

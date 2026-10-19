@@ -10,9 +10,9 @@ Fonte da verdade do preço: **o servidor**, a partir do banco. O front usa o MES
 ## Regras obrigatórias
 1. Dinheiro é **inteiro em centavos** em todo lugar (`price_cents` no banco, `priceCents` no JS/API, `*_cents`/`*Cents` sempre). Nunca `toFixed`, nunca `parseFloat`, nunca somar reais.
 2. Formatação só na borda (tela e mensagem do WhatsApp) via `formatBRL(cents)`.
-3. Pizza = tamanho único. **1 sabor (inteira) ou exatamente 2 sabores distintos (meio a meio)**, todos `kind = 'pizza'`.
+3. Pizza = tamanho único. **1 sabor (inteira) ou exatamente 2 sabores distintos (meio a meio)**, todos `kind = 'pizza'`. Meio a meio pode misturar Clássica com Especial (confirmado pelo dono).
 4. **Preço da pizza = preço do sabor mais caro + soma dos adicionais.** Nunca média.
-5. Adicionais (`kind = 'addon'`) só em pizza, distintos (cada um no máximo 1x por pizza), somam por pizza. **No máximo 1 addon de cada `addonGroup` não nulo por pizza**: as duas bordas (`addonGroup = 'borda'`) são mutuamente exclusivas; "Finalize com Catupiry por cima" (`addonGroup = null`) combina com qualquer borda. Violação → 400 `VALIDATION_ERROR` "Escolha apenas uma borda por pizza." (checado no `pricing.service`).
+5. Adicionais (`kind = 'addon'`) só em pizza, distintos (cada um no máximo 1x por pizza), somam por pizza. **No máximo 1 addon de cada `addonGroup` não nulo por pizza**: as duas bordas (`addonGroup = 'borda'`) são mutuamente exclusivas; "Finalize com Catupiry por cima" (`addonGroup = null`) combina com qualquer borda. Violação → 400 `VALIDATION_ERROR` "Escolha apenas uma borda por pizza." (checado no `pricing.service`). Os adicionais valem também na pizza meio a meio (confirmado pelo dono).
 6. `quantity` inteiro 1–20 por item; 1–30 itens por pedido.
 7. Total do item (`lineTotalCents`) = `(sabor mais caro + addons) × quantity` = `unitPriceCents × quantity`. Subtotal = soma dos itens. (Na mensagem do WhatsApp o item aparece em linhas separadas: pizza = `baseUnitCents × qtd`, cada addon = `priceCents × qtd` — ver `barao-pedido-whatsapp`.) **Taxa de entrega não é calculada** ("a combinar").
 8. Troco (`payment.method = 'cash'`): `changeForCents` opcional; se informado, **>= subtotal** (o total do pedido, já que não há taxa calculada).
