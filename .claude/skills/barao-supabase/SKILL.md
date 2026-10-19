@@ -33,7 +33,7 @@ O que a 0001 cria: tabelas do contrato + checks (endereço obrigatório se `deli
 | `getProductsByIds(ids)` | `Product[]` (ids inexistentes não aparecem) |
 | `getHours()` | `[{ weekday, opensAt: 'HH:MM', closesAt: 'HH:MM', isClosed }]` |
 | `updateHours(days)` | idem, após upsert dos 7 dias |
-| `getSettings()` / `updateSettings({ storeOverride })` | `{ storeOverride, whatsappNumber, updatedAt }` |
+| `getSettings()` / `updateSettings({ storeOverride?, whatsappNumber? })` (só altera o que vier) | `{ storeOverride, whatsappNumber, updatedAt }` |
 | `createOrder(draft)` | `{ id, code, createdAt }` |
 | `listOrders({ from, to, page, pageSize })` | `{ orders: Order[], total, page, pageSize }` (`from`/`to` = `YYYY-MM-DD` locais) |
 | `getOrderById(id)` | `Order \| null` |

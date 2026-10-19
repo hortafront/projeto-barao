@@ -67,7 +67,7 @@ O WhatsApp continua sendo o canal de atendimento: o site não substitui a conver
 3. **Resumo:** vê quantidade de pedidos, faturamento bruto estimado e os itens mais vendidos no período.
 4. **Produtos:** cria, edita preço/descrição, envia foto e marca um item como **esgotado** com um toque.
 5. **Horários:** ajusta o horário de cada dia da semana ou marca um dia como fechado.
-6. **Loja:** força **aberta** ou **fechada** (ex.: feriado, falta de gás) ou deixa no **automático** (segue os horários).
+6. **Loja:** força **aberta** ou **fechada** (ex.: feriado, falta de gás) ou deixa no **automático** (segue os horários). Também troca o **número do WhatsApp** que recebe os pedidos (digitado como (85) 99999-9999).
 
 ## 6. Cardápio completo
 
@@ -236,5 +236,5 @@ Exemplos: "Bateu a fome? Monte sua pizza.", "Ops, essa acabou por hoje.", "Estam
 1. **Fotos dos produtos:** ainda não existem — o dono enviará depois (ideal: quadradas, boa luz, ≥ 800 px). Até lá, o site funciona sem fotos com placeholder na identidade visual (ilustração de pizza/garrafa); quando chegarem, o upload é feito pelo painel.
 2. **Domínio:** usará domínio próprio (ex.: `pizzariabarao.com.br`) ou subdomínio da hospedagem? Quem registra?
 3. **Logo e mascote em arquivo** (vetor ou PNG em alta resolução) para uso no site.
-4. **Número do WhatsApp (PENDENTE):** o dono ainda vai enviar o número definitivo. Até lá vale `5585997687641` — (85) 99768-7641 — como valor atual/seed. O número vem de `settings.whatsapp_number` (nunca fixo no código) e é alterável; como o painel hoje só altera o modo da loja, a troca é feita por SQL (`update settings set whatsapp_number = '55DDDNUMERO' where id = 1;`). Editar pelo painel fica como melhoria futura.
+4. **Número do WhatsApp (PENDENTE):** o dono enviará o número definitivo; altera pelo painel em **Loja** (campo "Número do WhatsApp", digitado como (85) 99999-9999). Até lá vale `5585997687641` — (85) 99768-7641 — como valor atual/seed. O número vem de `settings.whatsapp_number` (nunca fixo no código).
 5. **Bairros atendidos:** há bairros onde não entregam? (O MVP não bloqueia por bairro; serviria para um aviso no checkout.)

@@ -123,8 +123,13 @@ export function createFakeDb(overrides = {}) {
     async getHours() { return clone(state.hours); },
     async updateHours(days) { state.hours = clone(days); return clone(state.hours); },
     async getSettings() { return clone(state.settings); },
-    async updateSettings({ storeOverride }) {
-      Object.assign(state.settings, { storeOverride, updatedAt: now().toISOString() });
+    /** Só altera o que vier: { storeOverride?, whatsappNumber? } (como o repo real). */
+    async updateSettings({ storeOverride, whatsappNumber } = {}) {
+      // espelha o check SQL de settings.whatsapp_number
+      if (whatsappNumber !== undefined && !/^55\d{10,11}$/.test(whatsappNumber)) throw new Error('check settings.whatsapp_number');
+      if (storeOverride !== undefined) state.settings.storeOverride = storeOverride;
+      if (whatsappNumber !== undefined) state.settings.whatsappNumber = whatsappNumber;
+      state.settings.updatedAt = now().toISOString();
       return clone(state.settings);
     },
 

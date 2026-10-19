@@ -1,6 +1,6 @@
 ---
 name: barao-painel-admin
-description: Use quando for criar ou alterar o painel do dono em /admin do cardápio Barão — public/admin/index.html (login), public/admin/painel.html, public/admin/js/*.js, public/css/admin.css — ou tarefas de login com supabase-js/ANON key, token Bearer, sessão expirada, helper adminApi, telas de Produtos (criar/editar, grupo de adicional Borda/addonGroup, upload de foto, toggle Esgotado, preço em reais), Horários (turno que vira a meia-noite), Loja (override auto/aberta/fechada), Pedidos (filtro por data, status received/confirmed/canceled) e Resumo (faturamento, top itens).
+description: Use quando for criar ou alterar o painel do dono em /admin do cardápio Barão — public/admin/index.html (login), public/admin/painel.html, public/admin/js/*.js, public/css/admin.css — ou tarefas de login com supabase-js/ANON key, token Bearer, sessão expirada, helper adminApi, telas de Produtos (criar/editar, grupo de adicional Borda/addonGroup, upload de foto, toggle Esgotado, preço em reais), Horários (turno que vira a meia-noite), Loja (override auto/aberta/fechada e número do WhatsApp da loja com máscara (85) 99999-9999), Pedidos (filtro por data, status received/confirmed/canceled) e Resumo (faturamento, top itens).
 ---
 
 # Barão — Painel admin (`/admin`)
@@ -123,6 +123,36 @@ const ok = await confirmDialog({
 if (ok) await withSaving(btn, () => adminApi('/api/admin/settings', { method: 'PUT', body: { storeOverride: 'closed' } }), { toast });
 ```
 
+### Loja: número do WhatsApp (máscara → só dígitos com 55)
+```js
+// Exibir: "5585997687641" → "(85) 99768-7641". Digitar: aceita "(85) 99999-9999", "85 99999 9999", "+55 85 9…".
+export function maskPhoneBR(value) {
+  let d = String(value ?? '').replace(/\D/g, '');
+  if (d.length > 11 && d.startsWith('55')) d = d.slice(2);
+  d = d.slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : '';
+  const mid = d.length === 11 ? 7 : 6;
+  return `(${d.slice(0, 2)}) ${d.slice(2, mid)}${d.length > mid ? '-' + d.slice(mid) : ''}`;
+}
+/** "(85) 99999-9999" → "5585999999999"; inválido → null (não envia). Mesmo formato do Zod: ^55\d{10,11}$ */
+export function toWhatsAppDigits(value) {
+  let d = String(value ?? '').replace(/\D/g, '');
+  if ((d.length === 12 || d.length === 13) && d.startsWith('55')) d = d.slice(2);
+  return /^\d{10,11}$/.test(d) ? `55${d}` : null;
+}
+
+async function saveWhatsApp(input, btn) {
+  const digits = toWhatsAppDigits(input.value);
+  if (!digits) return toast('Número inválido. Use DDD + número, ex.: (85) 99999-9999.', 'error');
+  const ok = await confirmDialog({
+    title: 'Trocar o número do WhatsApp?',
+    body: `Os próximos pedidos serão enviados para ${maskPhoneBR(digits)}. Confira: número errado = pedido perdido.`,
+    confirmLabel: 'Salvar número',
+  });
+  if (ok) await withSaving(btn, () => adminApi('/api/admin/settings', { method: 'PUT', body: { whatsappNumber: digits } }), { toast });
+}
+```
+
 ## Armadilhas
 - `logout()` redireciona e **nunca resolve** — sempre `await`/`return` para não continuar o fluxo depois do redirect.
 - Em `FormData` não definir `Content-Type` (o boundary some e o multer rejeita).
@@ -134,6 +164,7 @@ if (ok) await withSaving(btn, () => adminApi('/api/admin/settings', { method: 'P
 - Formatos de leitura: `GET /api/admin/products` → `{ products }`; `GET /api/admin/orders` → `{ orders, page, pageSize, total }`; `GET /api/admin/orders/:id` → `{ order }` (com `items`). Desembrulhar (`const { products } = await adminApi(...)`).
 - Não fazer polling agressivo de pedidos (bateria/dados do dono): botão "Atualizar" + atualização ao voltar para a aba (`visibilitychange`).
 - Override `open`/`closed` esquecido trava vendas: exibir faixa permanente enquanto não for `auto`.
+- Número do WhatsApp: o servidor **não** aceita máscara nem número sem `55` (400 `VALIDATION_ERROR`, `path: 'whatsappNumber'`) — sempre `toWhatsAppDigits()` antes do `PUT`. Envie só o campo alterado (`{ whatsappNumber }` ou `{ storeOverride }`); o outro não muda.
 
 ## Checklist final
 - [ ] Login com e-mail fora de `ADMIN_EMAILS` volta ao login com "Este e-mail não tem acesso ao painel."
@@ -145,6 +176,7 @@ if (ok) await withSaving(btn, () => adminApi('/api/admin/settings', { method: 'P
 - [ ] Toggle Esgotado reflete no `/api/menu` e no site do cliente.
 - [ ] Horário 18:00→00:30 salva e mostra "do dia seguinte".
 - [ ] Forçar fechada pede confirmação e deixa faixa visível; voltar para Automático remove.
+- [ ] Loja: digitar "(85) 98888-7777" → confirmação → "Salvo ✓"; o próximo pedido abre `wa.me/5585988887777`. "(85) 9888" mostra erro e não envia.
 - [ ] Pedido: confirmar/cancelar com feedback; cancelar pede confirmação.
 - [ ] Resumo bate com a lista de pedidos do mesmo intervalo.
 - [ ] Tudo usável com uma mão em 360px; botões ≥ 48px; foco visível.

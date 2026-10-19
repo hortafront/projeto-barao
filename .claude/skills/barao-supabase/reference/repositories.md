@@ -193,8 +193,12 @@ export function createStoreRepo(supabase) {
       if (error) throw dbError('getSettings', error);
       return toSettings(data);
     },
-    async updateSettings({ storeOverride }) {
-      const { data, error } = await supabase.from('settings').update({ store_override: storeOverride }).eq('id', 1).select('*').single();
+    /** Só os campos informados mudam: { storeOverride?, whatsappNumber? } (já validados pelo settingsSchema). */
+    async updateSettings({ storeOverride, whatsappNumber } = {}) {
+      const patch = {};
+      if (storeOverride !== undefined) patch.store_override = storeOverride;
+      if (whatsappNumber !== undefined) patch.whatsapp_number = whatsappNumber; // check SQL '^55[0-9]{10,11}$' (23514 se inválido)
+      const { data, error } = await supabase.from('settings').update(patch).eq('id', 1).select('*').single();
       if (error) throw dbError('updateSettings', error);
       return toSettings(data);
     },

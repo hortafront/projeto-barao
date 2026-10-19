@@ -187,6 +187,6 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 
 ## Pendências conhecidas
 - **Fotos** dos produtos: ainda não existem; o dono enviará depois (upload pelo admin). Até lá `image_url = null` → placeholder SVG inline na identidade (nunca imagem quebrada).
-- **Número do WhatsApp definitivo**: dono ainda vai enviar. Valor atual/seed `5585997687641` em `settings.whatsapp_number` (alterável; hoje via SQL `update settings set whatsapp_number = ... where id = 1`, pois `PUT /api/admin/settings` só aceita `storeOverride`).
+- **Número do WhatsApp definitivo**: dono enviará o número definitivo; altera pelo painel em **Loja** (`PUT /api/admin/settings { whatsappNumber }`, só dígitos `^55\d{10,11}$`). Valor atual/seed `5585997687641` em `settings.whatsapp_number`.
 - **Domínio** e hospedagem (define `CORS_ORIGIN` e CSP).
 - **Usuário admin no Supabase Auth**: criar `guslolhorta@gmail.com` (Auth → Users) no deploy.

@@ -79,7 +79,7 @@ Scripts npm: `dev` (`node --watch --env-file=.env src/server.js`), `start` (`nod
 2. **services** — regra de negócio. `pricing.service.js`, `hours.service.js` e `whatsapp.service.js` são **puros** (entrada → saída, sem I/O; o relógio é injetado como parâmetro `now`). `order.service.js` orquestra e recebe o repositório por injeção.
 3. **repositories** (`src/db/repositories/*.repo.js`) — único lugar que importa `src/db/supabase.js`. Convertem snake_case ↔ camelCase, devolvem objetos de domínio e **lançam** erro (nunca `{ data, error }`). `createRepository(supabase)` (`src/db/repositories/index.js`) junta todos num único objeto `db` com esta interface (o fake em memória dos testes implementa a mesma):
    - menu: `getMenu()`, `getProductsByIds(ids)`
-   - loja: `getHours()`, `updateHours(days)`, `getSettings()`, `updateSettings({ storeOverride })`
+   - loja: `getHours()`, `updateHours(days)`, `getSettings()`, `updateSettings({ storeOverride?, whatsappNumber? })`
    - pedidos: `createOrder(draft)`, `listOrders({ from, to, page, pageSize })`, `getOrderById(id)`, `updateOrderStatus(id, status)`, `getOrdersSummary({ from, to })`
    - produtos (admin): `listCategories()`, `listProducts()`, `getProductById(id)`, `createProduct(data)`, `updateProduct(id, patch)`, `deleteProduct(id)`, `setProductAvailability(id, available)`, `uploadProductImage(id, { buffer, contentType })`
    - auth: `getUserByAccessToken(token)`
@@ -194,7 +194,7 @@ create table public.settings (
   store_override   text not null default 'auto'
                    check (store_override in ('auto','open','closed')),
   whatsapp_number  text not null default '5585997687641'
-                   check (whatsapp_number ~ '^[0-9]{12,13}$'),
+                   check (whatsapp_number ~ '^55[0-9]{10,11}$'),  -- 55 + DDD + 8/9 dígitos (= Zod)
   updated_at       timestamptz not null default now()
 );
 
@@ -597,7 +597,7 @@ Objeto `AdminProduct`:
 | `GET /api/admin/hours` | — | `200 { hours: [{ weekday, opensAt, closesAt, isClosed }] }` (7 itens, 0..6) | 401, 403 |
 | `PUT /api/admin/hours` | `[{ weekday, opensAt: "HH:MM", closesAt: "HH:MM", isClosed }]` — exatamente 7, weekdays 0..6 sem repetição | `200 { hours }` | 400, 401, 403 |
 | `GET /api/admin/settings` | — | `200 { storeOverride, whatsappNumber, updatedAt }` | 401, 403 |
-| `PUT /api/admin/settings` | `{ storeOverride: "auto"\|"open"\|"closed" }` | `200 { storeOverride, whatsappNumber, updatedAt }` | 400, 401, 403 |
+| `PUT /api/admin/settings` | `{ storeOverride?: "auto"\|"open"\|"closed", whatsappNumber?: "55DDDNUMERO" }` — ao menos um campo; só os enviados mudam; `whatsappNumber` só dígitos, `^55\d{10,11}$` | `200 { storeOverride, whatsappNumber, updatedAt }` | 400, 401, 403 |
 | `GET /api/admin/orders?from=YYYY-MM-DD&to=YYYY-MM-DD&page=1` | query | `200 { orders: [{ id, code, createdAt, customerName, customerPhone, fulfillment, paymentMethod, subtotalCents, status }], page, pageSize, total }` | 400, 401, 403 |
 | `GET /api/admin/orders/:id` | — | `200 { order: { ...todos os campos de orders em camelCase, items: [{ id, kind, description, productIds, flavorNames, addons: [{ name, priceCents }], baseUnitCents, unitPriceCents, quantity, notes, lineTotalCents }] } }` | 401, 403, 404 |
 | `PATCH /api/admin/orders/:id/status` | `{ status: "received"\|"confirmed"\|"canceled" }` | `200 { order }` | 400, 401, 403, 404 |
@@ -852,7 +852,7 @@ Usuários admin são criados manualmente no dashboard do Supabase (Auth → User
 | **Resumo** | Período (hoje, 7 dias, mês, personalizado): nº de pedidos, faturamento bruto estimado (sem taxa de entrega, sem cancelados), top 10 itens |
 | **Produtos** | Lista agrupada por categoria; alternador "Disponível/Esgotado" com um toque; editar (nome, descrição, preço em R$ convertido com `parseBRLToCents`, ordem, categoria e — só para addon — "Grupo: Borda / nenhum" → `addonGroup` `"borda"` / `null`); enviar foto (preview, validação de tipo/tamanho no cliente); excluir com confirmação (409 → sugere marcar esgotado); novo produto |
 | **Horários** | 7 linhas (Domingo..Sábado) com abre/fecha e "Fechado o dia todo"; aviso quando o turno passa da meia-noite |
-| **Loja** | Três opções: Automático (segue horários) / Forçar aberta / Forçar fechada, com o status atual de `/api/status` |
+| **Loja** | Três opções: Automático (segue horários) / Forçar aberta / Forçar fechada, com o status atual de `/api/status`. Campo "Número do WhatsApp" com máscara `(85) 99999-9999`, normalizado no front para dígitos com `55` antes do `PUT { whatsappNumber }`, com confirmação e feedback "Salvo"; vale a partir do próximo pedido |
 
 ## 12. Tratamento de erros
 
@@ -958,7 +958,7 @@ TDD obrigatório em services e rotas. `npm test` → `node --test`. Integração
 32. CRUD de produto, `PATCH availability`, `DELETE` de produto (sabor, bebida ou addon) cujo id está em `order_items.product_ids` → 409 `PRODUCT_HAS_ORDERS`, `DELETE` de produto nunca pedido → 204, inexistente → 404. `GET /api/admin-config` sem token → 200 `{ supabaseUrl, supabaseAnonKey }`.
 33. Upload: tipo inválido → 400; > 2 MB → 413; válido → `imageUrl` atualizado (storage fake).
 34. `PUT /api/admin/hours` exige 7 dias únicos e `HH:MM` válido.
-35. `PUT /api/admin/settings` aceita só `auto|open|closed`.
+35. `PUT /api/admin/settings`: `storeOverride` aceita só `auto|open|closed`; `whatsappNumber` válido → 200 e o próximo `POST /api/orders` sai com `wa.me/<novo>`; máscara, sem `55` ou tamanho errado → 400 `VALIDATION_ERROR`; corpo vazio → 400.
 36. Pedidos: filtro por data em `America/Fortaleza`, paginação, detalhe, mudança de status.
 37. Resumo: exclui cancelados, `grossCents` correto, `topItems` agrupado por `description` (top 10, desempate por nome).
 
@@ -1032,10 +1032,11 @@ projeto-barao/
 12. **Snapshot completo em `order_items`:** `product_ids uuid[]`, `addons jsonb` (`[{ name, priceCents }]`), `base_unit_cents`, `unit_price_cents` (= base + addons), `line_total_cents` (= unit × quantity) — permite regenerar a mensagem do WhatsApp a partir do banco.
 13. **Respostas do admin:** `GET /api/admin/products` → `{ products }`; `GET /api/admin/orders` → `{ orders, page, pageSize, total }`; `GET /api/admin/orders/:id` → `{ order }` com `items`.
 14. **`createApp({ db, options })`** com `options = { now, rateLimit, adminEmails, corsOrigin, supabaseUrl, supabaseAnonKey, timeZone, isProduction, trustProxy }`.
+15. **Número do WhatsApp editável pelo painel (MVP):** `PUT /api/admin/settings` aceita `{ storeOverride?, whatsappNumber? }` (ao menos um). `whatsappNumber` só dígitos, `^55\d{10,11}$` no Zod e `^55[0-9]{10,11}$` no check SQL; o painel (tela Loja) aceita a máscara `(85) 99999-9999` e normaliza antes de enviar. O `order.service` lê `settings` a cada pedido, então a troca vale no pedido seguinte.
 
 **Em aberto (dependem do dono — ver BRIEFING, seção 12)**
 
-- **Número do WhatsApp definitivo (PENDENTE):** seed/valor atual `5585997687641`; vem sempre de `settings.whatsapp_number` e deve ser alterável. `PUT /api/admin/settings` aceita só `storeOverride`, então a troca é por SQL (`update public.settings set whatsapp_number = '…' where id = 1;`); edição pelo painel é melhoria futura (não muda a API no MVP).
+- **Número do WhatsApp definitivo (PENDENTE):** o dono enviará o número definitivo; seed/valor atual `5585997687641`. Vem sempre de `settings.whatsapp_number` e o dono altera pelo painel, na tela **Loja** (decisão 15).
 - **Fotos:** ainda não existem; o dono enviará depois. Até lá placeholder (seção 14); upload pelo painel.
 - Domínio e arquivos de marca.
 

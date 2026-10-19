@@ -30,7 +30,7 @@ Camadas: **rota fina** (HTTP ↔ service) → **service** (regra de negócio, pu
 | `PATCH /api/admin/products/:id/availability` | `validate(availabilitySchema)` | `db.setProductAvailability` | 200 |
 | `POST /api/admin/products/:id/image` | `imageUpload` (multer, campo `image`, jpeg/png/webp, 2 MB) | `db.uploadProductImage` | 200 |
 | `GET /api/admin/hours` / `PUT /api/admin/hours` | `validate(hoursSchema)` (array de 7 dias) | `db.getHours` / `db.updateHours` | 200 |
-| `GET /api/admin/settings` / `PUT /api/admin/settings` | `validate(settingsSchema)` `{ storeOverride }` | `db.getSettings` / `db.updateSettings` | 200 |
+| `GET /api/admin/settings` / `PUT /api/admin/settings` | PUT: `validate(settingsSchema)` `{ storeOverride?, whatsappNumber? }` (ao menos um; `whatsappNumber` só dígitos `^55\d{10,11}$`) | `db.getSettings` / `db.updateSettings(body)` | 200 `{ storeOverride, whatsappNumber, updatedAt }` / 400 |
 | `GET /api/admin/orders?from&to&page` | `validate(ordersQuerySchema,'query')` | `db.listOrders` | 200 `{ orders: [...], page, pageSize, total }` |
 | `GET /api/admin/orders/:id` | params | `db.getOrderById` | 200 `{ order }` (com `items`) / 404 |
 | `PATCH /api/admin/orders/:id/status` | `validate(orderStatusSchema)` | `db.updateOrderStatus` | 200 / 404 |

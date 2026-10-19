@@ -5,7 +5,7 @@ description: Use quando for escrever, rodar ou corrigir testes do cardápio Bar�
 
 # Barão — Estratégia de testes
 
-Os exemplos de referência foram executados (89 testes verdes, com rotas mínimas de status/admin — inclusive `POST`/`PUT /api/admin/products` — e o `menu.routes.js` da skill `barao-api-express`) contra o código de referência das skills `barao-cardapio-precos`, `barao-pedido-whatsapp`, `barao-api-express` e `barao-supabase`.
+Os exemplos de referência foram executados (91 testes verdes, com rotas mínimas de status/admin — inclusive `POST`/`PUT /api/admin/products` e o `settings.routes.js` (`GET`/`PUT /api/admin/settings`) — e o `menu.routes.js` da skill `barao-api-express`) contra o código de referência das skills `barao-cardapio-precos`, `barao-pedido-whatsapp`, `barao-api-express` e `barao-supabase`.
 
 **TDD obrigatório** para `shared/`, `src/services/` e `src/routes/`: escreva o teste, rode e **veja falhar pelo motivo
 certo** (vermelho) → código mínimo para passar (verde) → refatore com tudo verde. Bug corrigido = teste que o reproduz antes.
@@ -24,6 +24,7 @@ Ferramentas: `node:test` + `node:assert/strict` + `supertest`. Nada de Jest/Vite
 | [reference/exemplos/integration/whatsapp.message.test.js](reference/exemplos/integration/whatsapp.message.test.js) | `tests/integration/whatsapp.message.test.js` |
 | [reference/exemplos/integration/admin.auth.test.js](reference/exemplos/integration/admin.auth.test.js) | `tests/integration/admin.auth.test.js` |
 | [reference/exemplos/integration/admin.products.test.js](reference/exemplos/integration/admin.products.test.js) | `tests/integration/admin.products.test.js` |
+| [reference/exemplos/integration/admin.settings.test.js](reference/exemplos/integration/admin.settings.test.js) | `tests/integration/admin.settings.test.js` — número do WhatsApp pelo painel |
 
 ## Estrutura
 ```

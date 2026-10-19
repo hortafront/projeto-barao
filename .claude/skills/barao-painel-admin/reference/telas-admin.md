@@ -41,8 +41,11 @@ altura 56px + safe-area. Aba inicial: **Pedidos** (o que o dono mais olha no exp
 ## Loja
 - Mostra o estado atual vindo de `GET /api/status` (aberta/fechada + motivo) em selo grande.
 - 3 opções grandes (radio cards): **Automático (segue horários)** · **Forçar aberta** · **Forçar fechada**.
-- Trocar para `open`/`closed` pede confirmação com texto explícito ("Os clientes NÃO conseguirão fazer pedidos até você voltar para Automático."). `PUT /api/admin/settings { storeOverride }`.
+- Trocar para `open`/`closed` pede confirmação com texto explícito ("Os clientes NÃO conseguirão fazer pedidos até você voltar para Automático."). `PUT /api/admin/settings { storeOverride }` (só esse campo).
 - Override ativo fica destacado também no topo do painel (faixa tijolo "Loja forçada FECHADA") para não esquecer.
+- **Número do WhatsApp** (abaixo das 3 opções): campo "Número do WhatsApp" (`<input type="tel" inputmode="numeric" autocomplete="off">`), preenchido com `GET /api/admin/settings` → `whatsappNumber` exibido com máscara `(85) 99999-9999` (`maskPhoneBR`, aplicada enquanto digita). Ajuda abaixo: "É para este número que os pedidos chegam."
+  - Botão "Salvar número": valida no front (`toWhatsAppDigits` → DDD + 8/9 dígitos; inválido → erro no campo, não envia), pede confirmação ("Os próximos pedidos serão enviados para (85) 9xxxx-xxxx. Confira: número errado = pedido perdido.") e envia `PUT /api/admin/settings { whatsappNumber: "55DDDNUMERO" }` (só dígitos, com 55).
+  - Feedback via `withSaving`: "Salvando…" → toast "Salvo ✓"; 400 → mensagem do servidor no campo. Vale a partir do próximo pedido.
 
 ## Resumo
 - Mesmo filtro de datas (padrão hoje). `GET /api/admin/reports/summary?from&to`.
