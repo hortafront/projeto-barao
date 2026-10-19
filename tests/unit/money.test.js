@@ -9,7 +9,7 @@ test('formatBRL formata centavos em reais', () => {
 });
 
 test('formatBRL usa espaço comum, nunca NBSP', () => {
-  assert.ok(!formatBRL(3499).includes(' '));
+  assert.ok(!formatBRL(3499).includes('\u00A0'));
 });
 
 test('formatBRL lança TypeError se não for inteiro', () => {

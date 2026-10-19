@@ -8,7 +8,7 @@ export function formatBRL(cents) {
   }
   // Intl usa NBSP (U+00A0) depois de "R$"; normaliza para espaço comum
   // para a mensagem do WhatsApp e os testes baterem com o contrato.
-  return BRL.format(cents / 100).replace(/ /g, ' ');
+  return BRL.format(cents / 100).replace(/\u00A0/g, ' ');
 }
 
 /**
@@ -17,7 +17,7 @@ export function formatBRL(cents) {
  */
 export function parseBRLToCents(input) {
   if (typeof input !== 'string') return null;
-  let s = input.replace(/[\s ]/g, '').replace(/^R\$/i, '');
+  let s = input.replace(/[\s\u00A0]/g, '').replace(/^R\$/i, '');
   if (/^\d+\.\d{1,2}$/.test(s)) s = s.replace('.', ','); // teclado numérico com ponto decimal
   if (!/^(\d{1,3}(\.\d{3})+|\d+)(,\d{1,2})?$/.test(s)) return null;
   const [intPart, decPart = ''] = s.replace(/\./g, '').split(',');
