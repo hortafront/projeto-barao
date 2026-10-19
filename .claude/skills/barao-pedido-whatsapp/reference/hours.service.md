@@ -103,7 +103,7 @@ export function getStoreStatus(date, hours, override = 'auto', timeZone = DEFAUL
 ```
 
 ## Casos de teste (Fortaleza = UTC-3; datas em UTC)
-Horário: todos os dias 18:00–00:30, exceto segunda (`weekday 1`) `isClosed`.
+Horário **de teste** (fixture, não é o seed): 18:00–00:30 em todos os dias, exceto segunda (`weekday 1`) `isClosed`.
 | Instante UTC | Local Fortaleza | Esperado |
 |---|---|---|
 | `2026-10-17T20:59:00Z` | sáb 17:59 | fechado, `nextOpenAt = 2026-10-17T21:00:00.000Z` |
@@ -115,6 +115,13 @@ Horário: todos os dias 18:00–00:30, exceto segunda (`weekday 1`) `isClosed`.
 | `2026-10-20T03:10:00Z` | ter 00:10 | **fechado** (segunda fechada, não há turno de ontem) |
 | qualquer | — | override `'open'` → aberto; `'closed'` → fechado, `nextOpenAt null` |
 
-Com o seed placeholder (18:00–23:30 todos os dias): sáb 23:29 aberto, 23:30 fechado.
+A tabela acima usa um horário **de teste** (não o seed). Com o **seed** (dias confirmados: abre seg, qui, sex, sáb, dom; **fecha ter e qua**; horário 18:00–23:30 ainda provisório):
+
+| Instante UTC | Local Fortaleza | Esperado |
+|---|---|---|
+| `2026-10-18T02:29:00Z` / `02:30:00Z` | sáb 23:29 / 23:30 | aberto / fechado |
+| `2026-10-19T23:00:00Z` | seg 20:00 | aberto |
+| `2026-10-20T02:30:00Z` | seg 23:30 | fechado, `nextOpenAt` = qui 18:00 (`2026-10-22T21:00:00.000Z` = `2026-10-22T18:00-03:00`) |
+| `2026-10-20T22:00:00Z` | ter 19:00 | fechado (`isClosed`), `nextOpenAt` = qui 18:00 — `findNextOpenAt` pula ter e qua |
 
 Armadilhas: nunca `date.getDay()`/`getHours()` (fuso do processo); `hourCycle: 'h23'` evita `24:00` à meia-noite em alguns ICUs; o cálculo de `nextOpenAt` assume offset fixo na semana (válido para `America/Fortaleza`; revisar se `STORE_TIMEZONE` mudar para fuso com horário de verão).

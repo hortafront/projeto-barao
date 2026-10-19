@@ -111,7 +111,7 @@ Formato do `item` aceito por `calcItemCents` / `calcOrderSubtotalCents`:
 { kind: 'drink', product: { priceCents }, quantity }
 ```
 
-Entradas inválidas lançam erro: lista de sabores vazia ou com mais de 2 e quantidade fora de 1..20 (ou não inteira) → `RangeError`; preço não inteiro/negativo ou `kind` desconhecido → `TypeError`. Distinção de sabores/addons, `kind` correto de cada produto e disponibilidade são checados no servidor (`pricing.service.js`), não nas funções puras.
+Entradas inválidas lançam erro: lista de sabores vazia ou com mais de 2 e quantidade fora de 1..20 (ou não inteira) → `RangeError`; preço não inteiro/negativo ou `kind` desconhecido → `TypeError`. Distinção de sabores/addons, no máximo 1 addon por `addonGroup` (uma borda por pizza), `kind` correto de cada produto e disponibilidade são checados no servidor (`pricing.service.js`), não nas funções puras.
 
 > **Nota de formatação [Decisão]:** `Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })` emite um espaço não separável (U+00A0) entre "R$" e o número. `formatBRL` normaliza para espaço comum para que a mensagem do WhatsApp e os testes comparem strings de forma previsível.
 
@@ -162,8 +162,11 @@ create table public.products (
   image_url    text,
   available    boolean not null default true,
   sort_order   int not null default 0,
+  addon_group  text null check (addon_group is null or char_length(addon_group) between 1 and 30),
+                 -- addons do mesmo grupo são mutuamente exclusivos na pizza (ex.: 'borda')
   created_at   timestamptz not null default now(),
-  updated_at   timestamptz not null default now()
+  updated_at   timestamptz not null default now(),
+  constraint products_addon_group_only_addon check (addon_group is null or kind = 'addon')
 );
 
 create index products_category_sort_idx on public.products (category_id, sort_order);
@@ -405,35 +408,37 @@ insert into public.categories (slug, name, sort_order) values
   ('adicionais', 'Adicionais Especiais', 4)
 on conflict (slug) do nothing;
 
-insert into public.products (category_id, kind, name, description, price_cents, sort_order)
-select c.id, v.kind, v.name, v.description, v.price_cents, v.sort_order
+insert into public.products (category_id, kind, name, description, price_cents, sort_order, addon_group)
+select c.id, v.kind, v.name, v.description, v.price_cents, v.sort_order, v.addon_group
 from (values
   -- Pizzas Clássicas
-  ('classicas', 'pizza', 'Mista',      'Molho de tomate especial, mussarela, presunto, calabresa, cebola, azeitona e orégano', 3049, 1),
-  ('classicas', 'pizza', 'Calabresa',  'Molho de tomate especial, mussarela, calabresa, cebola, azeitona e orégano',           3049, 2),
-  ('classicas', 'pizza', 'Mussarela',  'Molho de tomate especial, mussarela, tomate, azeitona e orégano',                      3049, 3),
-  ('classicas', 'pizza', 'Marguerita', 'Molho de tomate especial, mussarela, manjericão, tomate, parmesão e orégano',          3490, 4),
+  ('classicas', 'pizza', 'Mista',      'Molho de tomate especial, mussarela, presunto, calabresa, cebola, azeitona e orégano', 3049, 1, null),
+  ('classicas', 'pizza', 'Calabresa',  'Molho de tomate especial, mussarela, calabresa, cebola, azeitona e orégano',           3049, 2, null),
+  ('classicas', 'pizza', 'Mussarela',  'Molho de tomate especial, mussarela, tomate, azeitona e orégano',                      3049, 3, null),
+  ('classicas', 'pizza', 'Marguerita', 'Molho de tomate especial, mussarela, manjericão, tomate, parmesão e orégano',          3490, 4, null),
   -- Pizzas Especiais
-  ('especiais', 'pizza', 'Frango',       'Molho de tomate especial, mussarela, frango, milho, azeitona e orégano',                               3499, 1),
-  ('especiais', 'pizza', 'Portuguesa',   'Molho de tomate especial, mussarela, presunto, ovos, cebola, pimentão, milho, azeitona e orégano',    3499, 2),
-  ('especiais', 'pizza', 'Bacon',        'Molho de tomate especial, mussarela, bacon, azeitona e orégano',                                       3999, 3),
-  ('especiais', 'pizza', 'Carne do Sol', 'Molho de tomate especial, mussarela, carne do sol, cebola roxa, azeitona e orégano',                    4299, 4),
+  ('especiais', 'pizza', 'Frango',       'Molho de tomate especial, mussarela, frango, milho, azeitona e orégano',                               3499, 1, null),
+  ('especiais', 'pizza', 'Portuguesa',   'Molho de tomate especial, mussarela, presunto, ovos, cebola, pimentão, milho, azeitona e orégano',    3499, 2, null),
+  ('especiais', 'pizza', 'Bacon',        'Molho de tomate especial, mussarela, bacon, azeitona e orégano',                                       3999, 3, null),
+  ('especiais', 'pizza', 'Carne do Sol', 'Molho de tomate especial, mussarela, carne do sol, cebola roxa, azeitona e orégano',                    4299, 4, null),
   -- Bebidas
-  ('bebidas', 'drink', 'Coca-Cola 600ml',               '', 600,  1),
-  ('bebidas', 'drink', 'Coca-Cola 600ml Zero Açúcar',   '', 600,  2),
-  ('bebidas', 'drink', 'Coca-Cola 1 Litro',             '', 1000, 3),
-  ('bebidas', 'drink', 'Coca-Cola 1 Litro Zero Açúcar', '', 1000, 4),
-  ('bebidas', 'drink', 'Guaraná 1 Litro',               '', 800,  5),
+  ('bebidas', 'drink', 'Coca-Cola 600ml',               '', 600,  1, null),
+  ('bebidas', 'drink', 'Coca-Cola 600ml Zero Açúcar',   '', 600,  2, null),
+  ('bebidas', 'drink', 'Coca-Cola 1 Litro',             '', 1000, 3, null),
+  ('bebidas', 'drink', 'Coca-Cola 1 Litro Zero Açúcar', '', 1000, 4, null),
+  ('bebidas', 'drink', 'Guaraná 1 Litro',               '', 800,  5, null),
   -- Adicionais Especiais
-  ('adicionais', 'addon', 'Borda Recheada com Catupiry',          '',                                       450, 1),
-  ('adicionais', 'addon', 'Finalize com Catupiry por cima',       'Mais cremosidade e sabor em cada fatia', 450, 2),
-  ('adicionais', 'addon', 'Borda de Chocolate (Garoto ao Leite)', '',                                       999, 3)
-) as v(category_slug, kind, name, description, price_cents, sort_order)
+  -- addon_group 'borda': no máximo uma borda por pizza; catupiry por cima (null) combina com qualquer borda
+  ('adicionais', 'addon', 'Borda Recheada com Catupiry',          '',                                       450, 1, 'borda'),
+  ('adicionais', 'addon', 'Finalize com Catupiry por cima',       'Mais cremosidade e sabor em cada fatia', 450, 2, null),
+  ('adicionais', 'addon', 'Borda de Chocolate (Garoto ao Leite)', '',                                       999, 3, 'borda')
+) as v(category_slug, kind, name, description, price_cents, sort_order, addon_group)
 join public.categories c on c.slug = v.category_slug;
 
--- Horários: PLACEHOLDER 18:00–23:30 todos os dias — CONFIRMAR COM O DONO
+-- Horários (0 = domingo). DIAS confirmados pelo dono: abre seg, qui, sex, sáb, dom; fecha ter (2) e qua (3).
+-- HORÁRIO 18:00–23:30 ainda PROVISÓRIO (pendência: confirmar horário de abertura/fechamento).
 insert into public.business_hours (weekday, opens_at, closes_at, is_closed)
-select d, time '18:00', time '23:30', false
+select d, time '18:00', time '23:30', d in (2, 3)
 from generate_series(0, 6) as d
 on conflict (weekday) do nothing;
 ```
@@ -466,13 +471,14 @@ Códigos: `STORE_CLOSED`, `VALIDATION_ERROR`, `PRODUCT_UNAVAILABLE`, `NOT_FOUND`
       "products": [
         { "id": "uuid", "kind": "pizza", "name": "Mista",
           "description": "Molho de tomate especial, ...", "priceCents": 3049,
-          "imageUrl": null, "available": true }
+          "imageUrl": null, "available": true, "addonGroup": null }
       ]
     }
   ]
 }
 ```
 
+- `addonGroup`: `string | null` — só em addons (`"borda"` nas duas bordas, `null` no "Catupiry por cima"); o front renderiza cada grupo como radio e os sem grupo como checkbox.
 - Categorias por `sort_order`; produtos por `sort_order`, depois `name`. **Inclui indisponíveis** (`available: false`) para exibir "Esgotado". Categorias sem produtos são omitidas.
 - **Erros:** `500 INTERNAL`.
 
@@ -485,13 +491,13 @@ Códigos: `STORE_CLOSED`, `VALIDATION_ERROR`, `PRODUCT_UNAVAILABLE`, `NOT_FOUND`
 {
   "open": false,
   "reason": "hours",
-  "nextOpenAt": "2026-10-18T18:00:00-03:00",
+  "nextOpenAt": "2026-10-18T21:00:00.000Z",
   "todayHours": { "weekday": 0, "opensAt": "18:00", "closesAt": "23:30", "isClosed": false }
 }
 ```
 
 - `reason`: `hours` (decidido pela tabela de horários, override `auto`), `override_open`, `override_closed`.
-- `nextOpenAt`: ISO 8601 com offset `-03:00` quando fechado e há abertura nos próximos 7 dias pelos horários; `null` quando aberto, quando `override_closed` **[Decisão: não prever reabertura sob override manual]** ou quando todos os dias estão `is_closed`.
+- `nextOpenAt`: ISO 8601 em **UTC** (`...Z`, gerado por `toISOString()`; ex.: `2026-10-18T21:00:00.000Z` = 18:00 em Fortaleza) quando fechado e há abertura nos próximos 7 dias pelos horários; `null` quando aberto, quando `override_closed` **[Decisão: não prever reabertura sob override manual]** ou quando todos os dias estão `is_closed`. O front formata para exibição em `America/Fortaleza` (`Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Fortaleza', ... })`).
 - `todayHours`: linha de `business_hours` do dia corrente em `America/Fortaleza` **[Decisão sobre a forma do objeto]**.
 - **Erros:** `500 INTERNAL`.
 
@@ -528,7 +534,7 @@ Códigos: `STORE_CLOSED`, `VALIDATION_ERROR`, `PRODUCT_UNAVAILABLE`, `NOT_FOUND`
 | `items` | 1..30 itens, união discriminada por `kind` |
 | `items[].quantity` | inteiro 1..20 |
 | pizza `flavorIds` | 1 ou 2 uuids **distintos**; todos devem ser produtos `kind = 'pizza'` |
-| pizza `addonIds` | 0..N uuids **distintos** (default `[]`); todos `kind = 'addon'` |
+| pizza `addonIds` | 0..N uuids **distintos** (default `[]`); todos `kind = 'addon'`; **no máximo 1 por `addon_group` não nulo** (checado no `pricing.service` → 400 "Escolha apenas uma borda por pizza") |
 | pizza `notes` | string ≤ 140, opcional **[Decisão]** |
 | drink `productId` | uuid de produto `kind = 'drink'` |
 | campos extras | removidos (`strip`); qualquer `price*` enviado pelo cliente é **ignorado** |
@@ -548,7 +554,7 @@ Códigos: `STORE_CLOSED`, `VALIDATION_ERROR`, `PRODUCT_UNAVAILABLE`, `NOT_FOUND`
 
 | HTTP | code | Quando |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` | Corpo inválido; id de produto existente mas de `kind` errado; sabores repetidos; troco menor que o subtotal |
+| 400 | `VALIDATION_ERROR` | Corpo inválido; id de produto existente mas de `kind` errado; sabores repetidos; duas bordas (mesmo `addon_group`) na mesma pizza — "Escolha apenas uma borda por pizza"; troco menor que o subtotal |
 | 409 | `STORE_CLOSED` | Loja fechada (horário ou override). `details: [{ nextOpenAt }]` |
 | 409 | `PRODUCT_UNAVAILABLE` | Algum produto referenciado não existe ou está `available = false`. `details: [{ productId, name }]` (`name: null` se inexistente) |
 | 413 | `VALIDATION_ERROR` | Corpo > 20 kb |
@@ -577,14 +583,14 @@ Objeto `AdminProduct`:
 ```json
 { "id": "uuid", "categoryId": "uuid", "categorySlug": "especiais", "kind": "pizza",
   "name": "Bacon", "description": "...", "priceCents": 3999, "imageUrl": null,
-  "available": true, "sortOrder": 3, "createdAt": "...", "updatedAt": "..." }
+  "available": true, "sortOrder": 3, "addonGroup": null, "createdAt": "...", "updatedAt": "..." }
 ```
 
 | Método e rota | Request | Response | Erros |
 |---|---|---|---|
 | `GET /api/admin/products` | — | `200 { products: AdminProduct[] }` (ordenado por categoria e `sortOrder`) | 401, 403 |
-| `POST /api/admin/products` | `{ categoryId, kind, name, description?, priceCents, available?, sortOrder? }` | `201 { product: AdminProduct }` | 400 `VALIDATION_ERROR` (inclui `categoryId` inexistente), 401, 403 |
-| `PUT /api/admin/products/:id` | mesmos campos do POST (todos obrigatórios exceto `description`, `available`, `sortOrder`) | `200 { product }` | 400, 401, 403, 404 `NOT_FOUND` |
+| `POST /api/admin/products` | `{ categoryId, kind, name, description?, priceCents, available?, sortOrder?, addonGroup? }` (`addonGroup`: `"borda"` ou `null`, default `null`; só permitido com `kind = 'addon'`) | `201 { product: AdminProduct }` | 400 `VALIDATION_ERROR` (inclui `categoryId` inexistente e `addonGroup` em produto que não é addon), 401, 403 |
+| `PUT /api/admin/products/:id` | mesmos campos do POST (todos obrigatórios exceto `description`, `available`, `sortOrder`, `addonGroup`) | `200 { product }` | 400, 401, 403, 404 `NOT_FOUND` |
 | `DELETE /api/admin/products/:id` | — | `204` | 401, 403, 404, **409 `PRODUCT_HAS_ORDERS`** — "Produto já tem pedidos; marque como esgotado em vez de excluir" |
 | `PATCH /api/admin/products/:id/availability` | `{ available: boolean }` | `200 { product }` | 400, 401, 403, 404 |
 | `POST /api/admin/products/:id/image` | `multipart/form-data`, campo `image`; jpeg/png/webp; máx. 2 MB | `200 { product }` com `imageUrl` público | 400 `VALIDATION_ERROR` (tipo inválido / sem arquivo), 413 `VALIDATION_ERROR` (> 2 MB), 401, 403, 404 |
@@ -615,6 +621,7 @@ Implementado em `shared/pricing.js` (puro) e aplicado por `src/services/pricing.
 2. Para cada id: inexistente ou `available = false` → acumular para `409 PRODUCT_UNAVAILABLE` (`name: null` se inexistente); existente com `kind` diferente do esperado → `400 VALIDATION_ERROR`.
 3. **Pizza:**
    - `flavors` / `addons` = produtos resolvidos (`[{ priceCents, ... }]`; cada addon no máximo 1x).
+   - **No máximo 1 addon por `addonGroup` não nulo** (ex.: uma só borda) → senão `400 VALIDATION_ERROR` "Escolha apenas uma borda por pizza". Addons sem grupo (Catupiry por cima) combinam com qualquer borda.
    - `base_unit_cents = calcPizzaBaseCents(flavors)` = **máximo** dos preços (1 sabor → o próprio preço).
    - `unit_price_cents = calcPizzaUnitCents(flavors, addons)` = base + Σ addons.
    - `line_total_cents = calcItemCents({ kind: 'pizza', flavors, addons, quantity })` = `unit_price_cents × quantity`.
@@ -630,6 +637,7 @@ Implementado em `shared/pricing.js` (puro) e aplicado por `src/services/pricing.
 | 1x Mussarela / Carne do Sol | max(3049, 4299) = 4299; × 1 | **4299** (R$ 42,99) |
 | 1x Calabresa / Frango + Borda Recheada com Catupiry | max(3049, 3499) = 3499; + 450 = 3949; × 1 | **3949** (R$ 39,49) |
 | 2x Bacon + Finalize com Catupiry por cima + Borda de Chocolate (Garoto ao Leite) | 3999 + 450 + 999 = 5448; × 2 | **10896** (R$ 108,96) |
+| 1x Calabresa + Borda Recheada com Catupiry + Borda de Chocolate | duas bordas (`addon_group = 'borda'`) | **400 `VALIDATION_ERROR`** "Escolha apenas uma borda por pizza" |
 | 2x Coca-Cola 1 Litro Zero Açúcar | 1000 × 2 | **2000** (R$ 20,00) |
 | 3x Guaraná 1 Litro | 800 × 3 | **2400** (R$ 24,00) |
 
@@ -657,7 +665,7 @@ getStoreStatus({ now /* Date */, hours /* 7 linhas */, override /* 'auto'|'open'
    - vira a meia-noite: aberto se `minutesNow >= open`.
 5. **Sobra do turno de ontem** (`weekday - 1`, mod 7, se `!is_closed` e `crossesMidnight`): aberto se `minutesNow < close`.
 6. Aberto se 4 **ou** 5. Limites: abre no minuto exato de `opens_at`; fecha no minuto exato de `closes_at` (exclusivo).
-7. **`nextOpenAt`** (fechado em `auto`): para `d = 0..7`, dia `weekday + d`; pular `is_closed`; candidato = data local do dia + `opens_at`; o primeiro candidato **> agora** é o resultado, formatado `YYYY-MM-DDTHH:MM:00-03:00`. Nenhum → `null`.
+7. **`nextOpenAt`** (fechado em `auto`): para `d = 0..7`, dia `weekday + d`; pular `is_closed`; candidato = data local do dia + `opens_at`; o primeiro candidato **> agora** é o resultado, convertido para UTC e devolvido como ISO 8601 `toISOString()` (`YYYY-MM-DDTHH:MM:00.000Z`). Nenhum → `null`.
 
 **Exemplos** (sábado = 6):
 
@@ -672,6 +680,7 @@ getStoreStatus({ now /* Date */, hours /* 7 linhas */, override /* 'auto'|'open'
 | Ontem fechado | sex `is_closed`, 18:00–00:30 | sáb 00:10 | fechado (sobra ignorada) |
 | Override | qualquer, `closed` | sáb 20:00 | fechado, `override_closed` |
 | Override | qualquer, `open` | ter 10:00 | aberto, `override_open` |
+| Dia de folga (seed) | ter e qua `is_closed`, demais 18:00–23:30 | ter 19:00 | fechado; `nextOpenAt` = qui 18:00 local (`2026-10-22T21:00:00.000Z`) |
 
 ## 8. Fluxo de criação de pedido
 
@@ -797,7 +806,7 @@ Guarda **somente ids, quantidades e observações** — nunca preços nem nomes:
 
 - Abre ao tocar numa pizza disponível. Título com o sabor escolhido.
 - Seletor **Inteira / Meio a meio**. Em meio a meio, lista de sabores (clássicas e especiais, exceto o já escolhido e os esgotados) para escolher o 2º sabor. Texto de ajuda: "Na meio a meio vale o preço do sabor mais caro."
-- Addons como checkboxes com preço (`+ R$ 4,50`).
+- Addons agrupados por `addonGroup`: cada grupo vira um **grupo de radio** com opção "Sem borda" (default) — "Sem borda / Borda Recheada com Catupiry +R$ 4,50 / Borda de Chocolate (Garoto ao Leite) +R$ 9,99"; addons sem grupo ("Finalize com Catupiry por cima +R$ 4,50") são checkboxes. Assim é impossível marcar duas bordas.
 - Quantidade (− / +, 1..20), observação (≤ 140 caracteres).
 - Botão "Adicionar — R$ 39,49" com preço ao vivo. Desabilitado se meio a meio sem 2º sabor.
 - Acessibilidade: `role="dialog"`, `aria-modal="true"`, `aria-labelledby`; foco vai para o título ao abrir, fica preso no modal, `Esc` fecha, foco volta ao elemento que abriu.
@@ -841,7 +850,7 @@ Usuários admin são criados manualmente no dashboard do Supabase (Auth → User
 |---|---|
 | **Pedidos** | Filtro de data (padrão: hoje), lista paginada (código, hora, cliente, entrega/retirada, pagamento, subtotal, status com cor). Pedidos `received` em destaque. Detalhe com itens, endereço, botão "Abrir conversa" (`wa.me/55{telefone}`), ações Confirmar / Cancelar / Voltar para recebido |
 | **Resumo** | Período (hoje, 7 dias, mês, personalizado): nº de pedidos, faturamento bruto estimado (sem taxa de entrega, sem cancelados), top 10 itens |
-| **Produtos** | Lista agrupada por categoria; alternador "Disponível/Esgotado" com um toque; editar (nome, descrição, preço em R$ convertido com `parseBRLToCents`, ordem, categoria); enviar foto (preview, validação de tipo/tamanho no cliente); excluir com confirmação (409 → sugere marcar esgotado); novo produto |
+| **Produtos** | Lista agrupada por categoria; alternador "Disponível/Esgotado" com um toque; editar (nome, descrição, preço em R$ convertido com `parseBRLToCents`, ordem, categoria e — só para addon — "Grupo: Borda / nenhum" → `addonGroup` `"borda"` / `null`); enviar foto (preview, validação de tipo/tamanho no cliente); excluir com confirmação (409 → sugere marcar esgotado); novo produto |
 | **Horários** | 7 linhas (Domingo..Sábado) com abre/fecha e "Fechado o dia todo"; aviso quando o turno passa da meia-noite |
 | **Loja** | Três opções: Automático (segue horários) / Forçar aberta / Forçar fechada, com o status atual de `/api/status` |
 
@@ -865,7 +874,7 @@ Rotas `/api/*` inexistentes → `404 NOT_FOUND` no mesmo formato.
 
 ## 13. Segurança
 
-- **Segredos:** `SUPABASE_SERVICE_ROLE_KEY` só no servidor; nunca em `public/` nem em logs. `.env` no `.gitignore`; `.env.example` versionado sem valores.
+- **Segredos:** `SUPABASE_SERVICE_ROLE_KEY` só no servidor; nunca em `public/` nem em logs. `.env` no `.gitignore`; `.env.example` versionado sem segredos (único valor preenchido: `ADMIN_EMAILS=guslolhorta@gmail.com`).
 - **RLS** habilitado em todas as tabelas sem policies para `anon`/`authenticated`; funções `create_order`/`next_order_code` só executáveis pelo `service_role`. Bucket `product-images` com leitura pública e escrita só via servidor.
 - **Helmet + CSP:** `default-src 'self'`; `script-src 'self' https://cdn.jsdelivr.net` (supabase-js ESM do admin); `style-src 'self' https://fonts.googleapis.com`; `font-src https://fonts.gstatic.com`; `img-src 'self' data: https://<projeto>.supabase.co`; `connect-src 'self'` + origem de `SUPABASE_URL` (necessário para o login do admin); `frame-ancestors 'none'`.
 - **CORS** restrito a `CORS_ORIGIN`.
@@ -910,6 +919,7 @@ TDD obrigatório em services e rotas. `npm test` → `node --test`. Integração
 3. Pizza inteira = preço do sabor.
 4. Meio a meio = sabor mais caro (Mussarela/Carne do Sol = 4299), independente da ordem.
 5. Addons somam por pizza e multiplicam pela quantidade (2x Bacon + 2 addons = 10896).
+5a. No máximo uma borda por pizza: Borda Catupiry + Borda Chocolate → 400 `VALIDATION_ERROR` "Escolha apenas uma borda por pizza"; borda + Catupiry por cima → aceito.
 6. Subtotal do exemplo da mensagem = 5949.
 7. Entradas inválidas (0 ou 3 sabores, quantidade 0 ou 21, preço não inteiro/negativo) lançam erro.
 8. Preços enviados pelo cliente são ignorados.
@@ -919,7 +929,7 @@ TDD obrigatório em services e rotas. `npm test` → `node --test`. Integração
 10. Turno que vira a meia-noite: aberto às 23:50 e às 00:10 do dia seguinte; fechado às 00:30.
 11. Sobra de ontem ignorada se ontem `is_closed`.
 12. Override `open`/`closed` prevalece sobre horários.
-13. `nextOpenAt` correto (mesmo dia, dia seguinte, pulando dias fechados, `null` se todos fechados).
+13. `nextOpenAt` correto (mesmo dia, dia seguinte, pulando dias fechados, `null` se todos fechados). Com o seed (ter/qua fechadas): terça 19:00 → fechado, `nextOpenAt` = quinta 18:00 local = `2026-10-22T21:00:00.000Z`.
 14. Cálculo usa `America/Fortaleza` independentemente do fuso do processo.
 
 *Unitários — `whatsapp.service.js`*
@@ -936,7 +946,7 @@ TDD obrigatório em services e rotas. `npm test` → `node --test`. Integração
 23. `GET /api/status` aberto/fechado/override com relógio fixo.
 24. `POST /api/orders` feliz (delivery + cash com troco) → 201, código `BR-0001`, subtotal correto, item e pedido salvos no fake repo.
 25. `POST /api/orders` retirada sem endereço → 201, endereço gravado `null`.
-26. Validações → 400: sem itens, 31 itens, quantidade 21, 3 sabores, sabores repetidos, addon repetido, addon como sabor, bebida como sabor, delivery sem endereço, telefone inválido, troco menor que o subtotal, notes > 280.
+26. Validações → 400: sem itens, 31 itens, quantidade 21, 3 sabores, sabores repetidos, addon repetido, duas bordas na mesma pizza, addon como sabor, bebida como sabor, delivery sem endereço, telefone inválido, troco menor que o subtotal, notes > 280.
 27. Loja fechada → 409 `STORE_CLOSED` com `nextOpenAt`.
 28. Produto esgotado → 409 `PRODUCT_UNAVAILABLE` com o nome; id inexistente → 409 `PRODUCT_UNAVAILABLE` com `name: null`.
 29. Rate limit → 11ª requisição em 10 min → 429 `RATE_LIMITED`.
@@ -971,7 +981,7 @@ TDD obrigatório em services e rotas. `npm test` → `node --test`. Integração
 | `SUPABASE_URL` | `https://xxxx.supabase.co` | |
 | `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` | **Secreta**, só servidor |
 | `SUPABASE_ANON_KEY` | `eyJ...` | Pública; usada só no login do admin |
-| `ADMIN_EMAILS` | `dono@exemplo.com,caixa@exemplo.com` | Separados por vírgula |
+| `ADMIN_EMAILS` | `guslolhorta@gmail.com` | Valor de produção (e do `.env.example`). Vários e-mails: separados por vírgula |
 | `CORS_ORIGIN` | `https://cardapio.exemplo.com.br` | Origem do site |
 | `STORE_TIMEZONE` | `America/Fortaleza` | |
 | `TRUST_PROXY` | `1` | Opcional; defina atrás de proxy (Render/Railway/Nginx) para o rate limit ver o IP real |
@@ -1024,13 +1034,13 @@ projeto-barao/
 
 **Em aberto (dependem do dono — ver BRIEFING, seção 12)**
 
-- Horários reais (seed é provisório).
+- Horário de abertura/fechamento: os dias estão confirmados (fecha ter e qua), mas 18:00–23:30 do seed é provisório.
 - Exibir ou não a chave Pix.
 - Meio a meio entre clássica e especial (padrão: permitido).
 - Adicionais na meio a meio (padrão: permitido).
-- Pode borda Catupiry + borda Chocolate na mesma pizza? (default provisório: permitido).
-- Preço da Marguerita R$ 34,90 está correto?
-- Domínio, e-mails do admin, fotos e arquivos de marca.
+- Domínio, fotos e arquivos de marca.
+
+**Respondidas pelo dono:** no máximo uma borda por pizza (`addon_group = 'borda'`; Catupiry por cima livre); Marguerita R$ 34,90 confirmado; dias de funcionamento (ter/qua fechadas); `ADMIN_EMAILS=guslolhorta@gmail.com`.
 
 **Em aberto (técnicas, para revisar após o MVP)**
 

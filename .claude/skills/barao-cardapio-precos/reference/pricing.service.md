@@ -3,7 +3,9 @@
 Entrada: `items` já validados pelo Zod (`createOrderSchema`, ver skill `barao-api-express`) e um `Map` id → produto vindo de `db.getProductsByIds(ids)`.
 
 Produto (forma de domínio devolvida pelos repositories, camelCase):
-`{ id, categoryId, kind: 'pizza'|'drink'|'addon', name, description, priceCents, imageUrl, available, sortOrder }`
+`{ id, categoryId, kind: 'pizza'|'drink'|'addon', name, description, priceCents, imageUrl, available, sortOrder, addonGroup: string | null }`
+
+`addonGroup` (coluna `addon_group`): addons do mesmo grupo não nulo são **mutuamente exclusivos** na pizza. Seed: as duas bordas têm `'borda'`; "Finalize com Catupiry por cima" tem `null` (combina com qualquer borda).
 
 Item precificado (saída de `priceOrderItems`) — serve ao mesmo tempo para `calcItemCents`/`calcOrderSubtotalCents`, para o snapshot em `order_items` e para `buildOrderMessage`:
 ```
@@ -45,6 +47,20 @@ function invalid(message, path = 'items') {
   return new AppError('VALIDATION_ERROR', 400, message, [{ path, message }]);
 }
 
+const ADDON_GROUP_MESSAGES = Object.freeze({ borda: 'Escolha apenas uma borda por pizza.' });
+
+/** No máximo 1 addon por addonGroup não nulo (ex.: uma borda só). Addons sem grupo combinam com tudo. */
+function assertOneAddonPerGroup(addons, path) {
+  const seen = new Set();
+  for (const a of addons) {
+    if (a.addonGroup == null) continue;
+    if (seen.has(a.addonGroup)) {
+      throw invalid(ADDON_GROUP_MESSAGES[a.addonGroup] ?? `Escolha apenas um adicional do grupo "${a.addonGroup}" por pizza.`, path);
+    }
+    seen.add(a.addonGroup);
+  }
+}
+
 export function priceOrderItems(items, productsById) {
   const unavailable = new Map(); // id -> { productId, name }
 
@@ -76,6 +92,10 @@ export function priceOrderItems(items, productsById) {
     throw new AppError('PRODUCT_UNAVAILABLE', 409,
       'Alguns itens não estão mais disponíveis. Revise seu carrinho.', [...unavailable.values()]);
   }
+
+  resolved.forEach(({ item, addons }, i) => {
+    if (item.kind === 'pizza') assertOneAddonPerGroup(addons, `items.${i}.addonIds`);
+  });
 
   return resolved.map(({ item, flavors, addons, product }) => {
     if (item.kind === 'pizza') {
@@ -115,4 +135,5 @@ export function assertChangeIsValid(payment, totalCents) {
 Notas
 - A ordem dos sabores na descrição é a ordem enviada pelo cliente (`flavorIds`).
 - Indisponíveis são acumulados e reportados de uma vez (melhor UX que falhar no primeiro).
+- Regra de grupo (uma borda por pizza) roda **depois** da checagem de disponibilidade: precisa do `addonGroup` dos produtos resolvidos. Duas bordas → `400 VALIDATION_ERROR` com `message`/`details[0].message` = "Escolha apenas uma borda por pizza." e `path` `items.<i>.addonIds`. A regra fica no servidor (autoridade); o `create_order` SQL não revalida.
 - `payment.changeForCents` de quem não paga em dinheiro é descartado pelo `order.service` (vira `null`).

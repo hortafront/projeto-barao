@@ -84,7 +84,10 @@ Nada de `onclick=""` inline nem `<script>` inline (CSP do helmet permite só `se
 1. Título = sabor clicado. Descrição.
 2. Segmento `Inteira | Meio a meio` (`<fieldset>` com 2 radios estilizados, 44px).
 3. Se meio a meio: lista de radios do 2º sabor (só pizzas disponíveis, exceto o 1º). Mostrar o preço de cada uma + nota "Meio a meio cobra o sabor de maior valor".
-4. Adicionais: checkboxes (um por addon disponível) com preço "+ R$ 4,50".
+4. Adicionais (só os disponíveis), agrupados por `addonGroup` com `splitAddons()` de `cart.js`:
+   - **Borda** (`addonGroup = 'borda'`): `<fieldset><legend>Borda</legend>` com **radios** `name="addon-group:borda"` — "Sem borda" (value `""`, marcado por padrão) / "Borda Recheada com Catupiry +R$ 4,50" / "Borda de Chocolate (Garoto ao Leite) +R$ 9,99". No máximo uma borda por pizza: o radio torna impossível marcar duas.
+   - **Sem grupo**: checkbox `name="addon"` — "Finalize com Catupiry por cima +R$ 4,50" (combina com qualquer borda ou com "Sem borda").
+   - Se uma borda estiver esgotada, o radio dela some (ou fica `disabled` com "Esgotado"); se o grupo inteiro esgotar, o fieldset some.
 5. Observação: `<textarea maxlength="140">` ("Ex.: sem cebola").
 6. Quantidade: `−` `1` `+` (1..20), botões 44px com aria-label.
 7. Rodapé sticky: botão dourado "Adicionar · R$ 34,99" — valor ao vivo recalculado com `shared/pricing.js` a cada `change`; o valor fica num `<span aria-live="polite">`.

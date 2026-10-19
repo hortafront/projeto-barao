@@ -39,8 +39,12 @@ create table public.products (
   image_url    text null,
   available    boolean not null default true,
   sort_order   int  not null default 0,
+  -- Addons do mesmo grupo são mutuamente exclusivos na pizza (no máximo 1 por grupo).
+  -- 'borda' = Borda Catupiry / Borda Chocolate; null = combina com tudo (Catupiry por cima).
+  addon_group  text null check (addon_group is null or char_length(addon_group) between 1 and 30),
   created_at   timestamptz not null default now(),
-  updated_at   timestamptz not null default now()
+  updated_at   timestamptz not null default now(),
+  constraint products_addon_group_only_addon check (addon_group is null or kind = 'addon')
 );
 create index products_category_sort_idx on public.products (category_id, sort_order);
 create trigger products_set_updated_at before update on public.products

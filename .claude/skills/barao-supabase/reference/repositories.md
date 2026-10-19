@@ -24,12 +24,13 @@ export function createSupabaseClient({
 import { AppError } from '../../errors/AppError.js';
 
 export const PRODUCT_COLUMNS =
-  'id, category_id, kind, name, description, price_cents, image_url, available, sort_order';
+  'id, category_id, kind, name, description, price_cents, image_url, available, sort_order, addon_group';
 
 export function toProduct(r) {
   return {
     id: r.id, categoryId: r.category_id, kind: r.kind, name: r.name, description: r.description,
     priceCents: r.price_cents, imageUrl: r.image_url, available: r.available, sortOrder: r.sort_order,
+    addonGroup: r.addon_group ?? null, // 'borda' | null — addons do mesmo grupo são exclusivos na pizza
   };
 }
 
@@ -210,7 +211,7 @@ const BUCKET = 'product-images';
 const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 const toRow = (p) => Object.fromEntries(Object.entries({
   category_id: p.categoryId, kind: p.kind, name: p.name, description: p.description,
-  price_cents: p.priceCents, available: p.available, sort_order: p.sortOrder,
+  price_cents: p.priceCents, available: p.available, sort_order: p.sortOrder, addon_group: p.addonGroup,
 }).filter(([, v]) => v !== undefined)); // PUT parcial: não sobrescreve com undefined
 
 export function createProductsRepo(supabase) {

@@ -18,7 +18,7 @@ Contrato de nomes/rotas: `CLAUDE.md`. Preço: skill `barao-cardapio-precos`. Pay
 ## Regras obrigatórias
 1. **Nunca `innerHTML`/`insertAdjacentHTML`/`outerHTML` com dados.** Todo DOM dinâmico via `el(tag, attrs, ...children)` de `dom.js` (strings viram nós de texto).
 2. **Dinheiro em centavos inteiros.** Formatar só na borda com `formatBRL(cents)` de `/shared/money.js`; entrada em reais (troco) com `parseBRLToCents`. Nada de `price / 100`, `toFixed`, `parseFloat` em valor.
-3. **Preço ao vivo = `/shared/pricing.js`** (mesmo código do servidor). Nunca reimplementar regra (meio a meio = sabor mais caro; addons somam por pizza, 1x cada).
+3. **Preço ao vivo = `/shared/pricing.js`** (mesmo código do servidor). Nunca reimplementar regra (meio a meio = sabor mais caro; addons somam por pizza, 1x cada; **no máximo uma borda por pizza** — addons com o mesmo `addonGroup` são radio, sem grupo são checkbox).
 4. **Carrinho** em `localStorage['barao:cart:v1']` guarda só ids/quantidades/opções/obs. Ao carregar o menu, sempre `revalidate(productsById)`; preços e nomes vêm do `/api/menu`. O servidor ignora preço do cliente — não envie.
 5. **Só tokens**: cores, fontes, espaços, raios, sombras, z-index vêm de `var(--*)`. Nenhum hex fora de `tokens.css`.
 6. **Mobile-first**: CSS base para 360px; `@media (min-width: 768px)` para ampliar. Sem scroll horizontal de página (só nas abas).
@@ -94,15 +94,21 @@ export function productCard(product, { onOpenPizza, onAddDrink }) {
 
 ### Preço ao vivo no modal (product-modal.js)
 ```js
-// form: <form id="pizza-form"> com radios name="mode" (whole|half), name="second", checkboxes name="addon"
+// form: <form id="pizza-form"> com radios name="mode" (whole|half), name="second",
+// radios name="addon-group:borda" (value "" = "Sem borda", default) e checkboxes name="addon" (addons sem grupo).
+// Montagem: splitAddons(addons) de cart.js → cada grupo um <fieldset><legend>Borda</legend> de radios; `free` = checkboxes.
 function readSelection(form, firstFlavorId) {
   const data = new FormData(form);
   const half = data.get('mode') === 'half';
   const second = data.get('second');
+  const groupPicks = [...data.keys()]
+    .filter((k, i, all) => k.startsWith('addon-group:') && all.indexOf(k) === i)
+    .map((k) => data.get(k))
+    .filter(Boolean); // "" = "Sem borda"
   return {
     kind: 'pizza',
     flavorIds: half && second ? [firstFlavorId, second] : [firstFlavorId],
-    addonIds: data.getAll('addon'),
+    addonIds: [...groupPicks, ...data.getAll('addon')], // radio garante 1 por grupo
     quantity: Number(data.get('quantity')) || 1,
     notes: String(data.get('notes') ?? '').trim(),
     incomplete: half && !second,
@@ -167,7 +173,7 @@ function buildPayload(f, subtotal) { // f = FormData do checkout
 - [ ] Preço no modal/drawer bate com o `subtotalCents` devolvido pela API.
 - [ ] Carrinho sobrevive a reload; item esgotado no admin some do carrinho com aviso.
 - [ ] Payload do checkout = body de `POST /api/orders` do contrato (sem preço, telefone só dígitos, `address` só em entrega).
-- [ ] Meio a meio exige 2º sabor distinto; addons 1x cada; quantidade 1..20.
+- [ ] Meio a meio exige 2º sabor distinto; addons 1x cada; bordas em radio ("Sem borda" default, nunca duas); Catupiry por cima em checkbox; quantidade 1..20.
 - [ ] Endereço só obrigatório em entrega; troco só em dinheiro e ≥ total.
 - [ ] Estados: carregando, erro de rede com "Tentar novamente", loja fechada, esgotado, carrinho vazio.
 - [ ] Teclado: Tab percorre tudo com foco visível; Esc fecha modais; foco volta ao botão de origem.

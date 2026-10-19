@@ -89,20 +89,35 @@ const productBase = z.object({
   priceCents: z.number().int().min(0).max(1_000_000),
   available: z.boolean(),
   sortOrder: z.number().int().min(0).max(9999),
+  // Grupo exclusivo de adicionais (no máximo 1 por pizza). Hoje só 'borda'; null = sem grupo.
+  addonGroup: z.enum(['borda'], { message: 'Grupo inválido.' }).nullable(),
 });
+
+const ADDON_GROUP_ONLY_ADDON = {
+  message: 'Só adicionais podem ter grupo (ex.: Borda).',
+  path: ['addonGroup'],
+};
+// espelha o check do banco: addon_group is null or kind = 'addon'
+const groupFitsKind = (p) => p.addonGroup == null || p.kind === undefined || p.kind === 'addon';
 
 export const productCreateSchema = productBase.extend({
   description: productBase.shape.description.default(''),
   available: productBase.shape.available.default(true),
   sortOrder: productBase.shape.sortOrder.default(0),
-});
+  addonGroup: productBase.shape.addonGroup.default(null),
+}).refine(groupFitsKind, ADDON_GROUP_ONLY_ADDON);
+
 // sem defaults: PUT parcial não pode sobrescrever campos omitidos
 export const productUpdateSchema = productBase.partial()
-  .refine((p) => Object.keys(p).length > 0, 'Nada para atualizar.');
+  .refine((p) => Object.keys(p).length > 0, 'Nada para atualizar.')
+  .refine(groupFitsKind, ADDON_GROUP_ONLY_ADDON)
+  // virou pizza/bebida sem mandar addonGroup → limpa o grupo (senão o check do banco falha)
+  .transform((p) => (p.kind && p.kind !== 'addon' && p.addonGroup === undefined ? { ...p, addonGroup: null } : p));
 
 export const availabilitySchema = z.object({ available: z.boolean() });
 ```
 O admin digita preço em reais; o front converte com `parseBRLToCents` e envia `priceCents` inteiro.
+`addonGroup`: `'borda'` ou `null` ("Grupo: Borda | nenhum" no form do admin, só para `kind = 'addon'`). Grupo em pizza/bebida → 400 `VALIDATION_ERROR` (path `addonGroup`). PUT de `addonGroup: 'borda'` sem `kind` no corpo passa no schema; o banco ainda barra pelo check se o produto não for addon — por isso o form do admin sempre envia `kind`.
 
 ## `src/schemas/hours.schema.js`
 ```js

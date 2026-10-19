@@ -1,6 +1,6 @@
 ---
 name: barao-painel-admin
-description: Use quando for criar ou alterar o painel do dono em /admin do cardápio Barão — public/admin/index.html (login), public/admin/painel.html, public/admin/js/*.js, public/css/admin.css — ou tarefas de login com supabase-js/ANON key, token Bearer, sessão expirada, helper adminApi, telas de Produtos (criar/editar, upload de foto, toggle Esgotado, preço em reais), Horários (turno que vira a meia-noite), Loja (override auto/aberta/fechada), Pedidos (filtro por data, status received/confirmed/canceled) e Resumo (faturamento, top itens).
+description: Use quando for criar ou alterar o painel do dono em /admin do cardápio Barão — public/admin/index.html (login), public/admin/painel.html, public/admin/js/*.js, public/css/admin.css — ou tarefas de login com supabase-js/ANON key, token Bearer, sessão expirada, helper adminApi, telas de Produtos (criar/editar, grupo de adicional Borda/addonGroup, upload de foto, toggle Esgotado, preço em reais), Horários (turno que vira a meia-noite), Loja (override auto/aberta/fechada), Pedidos (filtro por data, status received/confirmed/canceled) e Resumo (faturamento, top itens).
 ---
 
 # Barão — Painel admin (`/admin`)
@@ -128,6 +128,7 @@ if (ok) await withSaving(btn, () => adminApi('/api/admin/settings', { method: 'P
 - Em `FormData` não definir `Content-Type` (o boundary some e o multer rejeita).
 - `<input type="date">` devolve `YYYY-MM-DD` local do aparelho; o servidor interpreta o intervalo em `America/Fortaleza` — não converter para UTC no front.
 - Criar produto e enviar foto são 2 chamadas: só faça o upload com o `id` retornado pelo POST.
+- `addonGroup` ("Grupo: Borda | nenhum") só existe para `kind = 'addon'`; envie sempre `kind` junto e `addonGroup: null` para pizza/bebida (grupo em não-addon → 400 `VALIDATION_ERROR`, `path: 'addonGroup'`).
 - Liberar `URL.createObjectURL` com `revokeObjectURL` ao trocar/fechar.
 - Excluir produto que já aparece em pedido → 409 `PRODUCT_HAS_ORDERS` (checado por id em `order_items.product_ids`): oferecer "Marcar como esgotado".
 - Formatos de leitura: `GET /api/admin/products` → `{ products }`; `GET /api/admin/orders` → `{ orders, page, pageSize, total }`; `GET /api/admin/orders/:id` → `{ order }` (com `items`). Desembrulhar (`const { products } = await adminApi(...)`).
@@ -139,6 +140,7 @@ if (ok) await withSaving(btn, () => adminApi('/api/admin/settings', { method: 'P
 - [ ] Token expirado (ou apagado do sessionStorage) → próxima ação volta ao login sem erro feio.
 - [ ] `grep -rn "supabase.from\|SERVICE_ROLE\|innerHTML" public/admin` vazio.
 - [ ] Preço "34,99" salva `3499`; "abc" mostra erro e não envia.
+- [ ] Addon com "Grupo: Borda" aparece no modal do cliente como radio junto das outras bordas; "nenhum" vira checkbox.
 - [ ] Foto > 2 MB ou `.gif` bloqueada no front com mensagem; preview aparece antes de salvar.
 - [ ] Toggle Esgotado reflete no `/api/menu` e no site do cliente.
 - [ ] Horário 18:00→00:30 salva e mostra "do dia seguinte".

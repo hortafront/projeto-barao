@@ -27,11 +27,13 @@ altura 56px + safe-area. Aba inicial: **Pedidos** (o que o dono mais olha no exp
 - `GET /api/admin/products` → `{ products }`, agrupado por categoria (ordem `sort_order`). Linha: foto 56px, nome, preço, toggle **Disponível/Esgotado** grande (switch 44px, `role="switch" aria-checked`).
 - Toggle = `PATCH /api/admin/products/:id/availability { available }` otimista: muda na hora, reverte e avisa se falhar.
 - "Novo produto" e toque na linha → formulário: categoria (select), tipo derivado da categoria (`classicas|especiais`→pizza, `bebidas`→drink, `adicionais`→addon), nome (1–80), descrição (≤ 300), preço em reais, ordem (0–9999), disponível — limites do `product.schema.js` (skill barao-api-express).
+- Só quando o tipo é `addon`: campo **"Grupo: Borda | nenhum"** (`<select name="addonGroup">` ou 2 radios) → envia `addonGroup: 'borda'` ou `null`. Ajuda: "Adicionais do grupo Borda são exclusivos: o cliente escolhe no máximo uma borda por pizza." Para pizza/bebida o campo fica oculto e o form envia `addonGroup: null`. Sempre enviar `kind` junto (o schema só aceita grupo em addon → 400 com `path: 'addonGroup'`). Na lista, mostrar um selo pequeno "Borda" nos addons do grupo.
 - Foto: `<input type="file" accept="image/jpeg,image/png,image/webp">`, valida tipo e ≤ 2 MB no front, preview com `URL.createObjectURL`, envio `POST /api/admin/products/:id/image` (campo `image`) só depois de o produto existir (criar → depois enviar foto).
 - Excluir: confirmação; 204 → some da lista. Se a API responder 409 `PRODUCT_HAS_ORDERS` → mostrar a mensagem da API ("Produto já tem pedidos; marque como esgotado em vez de excluir") com botão "Marcar como esgotado" que faz o `PATCH .../availability { available: false }`.
 
 ## Horários
 - 7 linhas Domingo → Sábado (`weekday` 0..6, 0 = domingo): checkbox "Fechado", `<input type="time">` abre / fecha.
+- Seed (dias confirmados pelo dono): terça e quarta vêm com "Fechado" marcado; demais 18:00–23:30 (horário provisório — o dono ajusta aqui).
 - Se fecha ≤ abre: mostrar dica "Vira a meia-noite: fecha às 00:30 do dia seguinte" (válido, não é erro). Abre = fecha → erro.
 - Botão "Copiar para todos os dias" a partir da linha de domingo. Um único "Salvar horários" → `PUT /api/admin/hours` com os 7 dias.
 - Rodapé informativo: "Horário de Fortaleza (UTC−3)".

@@ -10,6 +10,7 @@ export const MAX_QTY = 20;
 /**
  * Linha do carrinho = item do body de POST /api/orders + um `lineId` local:
  *   { lineId, kind: 'pizza', flavorIds: [id] | [id, id], addonIds: [id...], quantity, notes }
+ *   addonIds: no máximo 1 por addonGroup não nulo (uma borda por pizza; Catupiry por cima é livre).
  *   { lineId, kind: 'drink', productId, quantity }
  */
 let lines = load();
@@ -78,8 +79,36 @@ export function indexMenu(menu) {
 }
 
 /**
+ * Agrupa os addons do menu para o modal: { groups: Map<group, addon[]>, free: addon[] }.
+ * Cada grupo vira um <fieldset> de radios ("Sem borda" + opções); `free` vira checkboxes.
+ */
+export function splitAddons(addons) {
+  const groups = new Map();
+  const free = [];
+  for (const a of addons) {
+    if (a.addonGroup == null) { free.push(a); continue; }
+    if (!groups.has(a.addonGroup)) groups.set(a.addonGroup, []);
+    groups.get(a.addonGroup).push(a);
+  }
+  return { groups, free };
+}
+
+/** Mesma regra do servidor (pricing.service): no máximo 1 addon por addonGroup não nulo. */
+export function oneAddonPerGroup(addonIds, productsById) {
+  const seen = new Set();
+  for (const id of addonIds) {
+    const group = productsById.get(id)?.addonGroup;
+    if (group == null) continue;
+    if (seen.has(group)) return false;
+    seen.add(group);
+  }
+  return true;
+}
+
+/**
  * Revalida o carrinho contra o cardápio atual. Remove linhas com produto inexistente,
- * esgotado (available=false) ou de tipo errado. Retorna os nomes removidos para avisar o cliente.
+ * esgotado (available=false), de tipo errado ou com duas bordas (carrinho salvo antes da regra).
+ * Retorna os nomes removidos para avisar o cliente.
  */
 export function revalidate(productsById) {
   const removed = [];
@@ -93,7 +122,8 @@ export function revalidate(productsById) {
       : l.flavorIds.length >= 1 && l.flavorIds.length <= 2 &&
         new Set(l.flavorIds).size === l.flavorIds.length &&
         l.flavorIds.every((id) => ok(id, 'pizza')) &&
-        l.addonIds.every((id) => ok(id, 'addon'));
+        l.addonIds.every((id) => ok(id, 'addon')) &&
+        oneAddonPerGroup(l.addonIds, productsById);
     if (!good) removed.push(describeLine(l, productsById));
     return good;
   });

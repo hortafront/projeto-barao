@@ -1,6 +1,6 @@
 ---
 name: barao-cardapio-precos
-description: Use quando for criar ou alterar shared/money.js, shared/pricing.js ou src/services/pricing.service.js do Barão; quando calcular preço de pizza inteira ou meio a meio, adicionais (borda, catupiry por cima, borda de chocolate), subtotal do carrinho ou do pedido; quando formatar ou converter reais/centavos (formatBRL, parseBRLToCents, R$, troco); quando mexer na tabela/seed do cardápio e seus preços; ou quando planejar múltiplos tamanhos de pizza. Também quando aparecerem palavras como "preço", "centavos", "priceCents", "meio a meio", "addon", "subtotal", "troco".
+description: Use quando for criar ou alterar shared/money.js, shared/pricing.js ou src/services/pricing.service.js do Barão; quando calcular preço de pizza inteira ou meio a meio, adicionais (borda, catupiry por cima, borda de chocolate, no máximo uma borda por pizza / addonGroup), subtotal do carrinho ou do pedido; quando formatar ou converter reais/centavos (formatBRL, parseBRLToCents, R$, troco); quando mexer na tabela/seed do cardápio e seus preços; ou quando planejar múltiplos tamanhos de pizza. Também quando aparecerem palavras como "preço", "centavos", "priceCents", "meio a meio", "addon", "subtotal", "troco".
 ---
 
 # Barão — Cardápio e regras de preço
@@ -12,15 +12,15 @@ Fonte da verdade do preço: **o servidor**, a partir do banco. O front usa o MES
 2. Formatação só na borda (tela e mensagem do WhatsApp) via `formatBRL(cents)`.
 3. Pizza = tamanho único. **1 sabor (inteira) ou exatamente 2 sabores distintos (meio a meio)**, todos `kind = 'pizza'`.
 4. **Preço da pizza = preço do sabor mais caro + soma dos adicionais.** Nunca média.
-5. Adicionais (`kind = 'addon'`) só em pizza, distintos (cada um no máximo 1x por pizza), somam por pizza.
+5. Adicionais (`kind = 'addon'`) só em pizza, distintos (cada um no máximo 1x por pizza), somam por pizza. **No máximo 1 addon de cada `addonGroup` não nulo por pizza**: as duas bordas (`addonGroup = 'borda'`) são mutuamente exclusivas; "Finalize com Catupiry por cima" (`addonGroup = null`) combina com qualquer borda. Violação → 400 `VALIDATION_ERROR` "Escolha apenas uma borda por pizza." (checado no `pricing.service`).
 6. `quantity` inteiro 1–20 por item; 1–30 itens por pedido.
 7. Total do item (`lineTotalCents`) = `(sabor mais caro + addons) × quantity` = `unitPriceCents × quantity`. Subtotal = soma dos itens. (Na mensagem do WhatsApp o item aparece em linhas separadas: pizza = `baseUnitCents × qtd`, cada addon = `priceCents × qtd` — ver `barao-pedido-whatsapp`.) **Taxa de entrega não é calculada** ("a combinar").
 8. Troco (`payment.method = 'cash'`): `changeForCents` opcional; se informado, **>= subtotal** (o total do pedido, já que não há taxa calculada).
 9. `shared/*.js` são ES modules **puros e sem dependências** (nem `node:*`, nem DOM) — rodam no Node e no browser.
 
 ## Cardápio (seed `0002_seed_cardapio.sql`)
-| Categoria (slug) | kind | Produto | priceCents |
-|---|---|---|---|
+| Categoria (slug) | kind | Produto | priceCents | addonGroup |
+|---|---|---|---|---|
 | classicas | pizza | Mista | 3049 |
 | classicas | pizza | Calabresa | 3049 |
 | classicas | pizza | Mussarela | 3049 |
@@ -34,11 +34,11 @@ Fonte da verdade do preço: **o servidor**, a partir do banco. O front usa o MES
 | bebidas | drink | Coca-Cola 1 Litro | 1000 |
 | bebidas | drink | Coca-Cola 1 Litro Zero Açúcar | 1000 |
 | bebidas | drink | Guaraná 1 Litro | 800 |
-| adicionais | addon | Borda Recheada com Catupiry | 450 |
-| adicionais | addon | Finalize com Catupiry por cima | 450 |
-| adicionais | addon | Borda de Chocolate (Garoto ao Leite) | 999 |
+| adicionais | addon | Borda Recheada com Catupiry | 450 | `borda` |
+| adicionais | addon | Finalize com Catupiry por cima | 450 | null |
+| adicionais | addon | Borda de Chocolate (Garoto ao Leite) | 999 | `borda` |
 
-Descrições e SQL completos: skill `barao-supabase` → `reference/seed.sql`. Atenção: Marguerita é **3490** (R$ 34,90), não 3499.
+Descrições e SQL completos: skill `barao-supabase` → `reference/seed.sql`. Marguerita é **3490** (R$ 34,90) — confirmado pelo dono, não é 3499. Pizzas e bebidas têm `addonGroup` null.
 
 ## `shared/money.js` (referência completa)
 ```js
@@ -126,7 +126,7 @@ export function calcOrderSubtotalCents(items) {
   return items.reduce((sum, item) => sum + calcItemCents(item), 0);
 }
 ```
-As funções puras checam forma/limites; **distinção de sabores/addons, `kind` correto e disponibilidade** são checados no servidor (Zod + `pricing.service.js`). O front impede na UI, mas não é autoridade.
+As funções puras checam forma/limites; **distinção de sabores/addons, uma borda por pizza (`addonGroup`), `kind` correto e disponibilidade** são checados no servidor (Zod + `pricing.service.js`). O front impede na UI, mas não é autoridade.
 
 ## `src/services/pricing.service.js`
 Resolve ids → produtos do banco, valida kind/disponibilidade, recalcula e monta o snapshot de cada item. Implementação de referência em [reference/pricing.service.md](reference/pricing.service.md). Funções públicas: `collectProductIds(items)`, `priceOrderItems(items, productsById)`, `assertChangeIsValid(payment, totalCents)`.
@@ -140,15 +140,17 @@ Resolve ids → produtos do banco, valida kind/disponibilidade, recalcula e mont
 | Mussarela / Marguerita | max(3049, 3490) | 3490 → R$ 34,90 |
 | Bacon / Carne do Sol + Borda Catupiry + Catupiry por cima | 4299 + 450 + 450 | 5199 |
 | Frango + Borda de Chocolate, qtd 2 | (3499 + 999) × 2 | 8996 → R$ 89,96 |
+| Frango + Borda de Chocolate + Catupiry por cima | 3499 + 999 + 450 | 4948 (borda + cobertura: ok) |
+| Calabresa + Borda Catupiry + Borda de Chocolate | duas bordas (`addonGroup = 'borda'`) | 400 VALIDATION_ERROR "Escolha apenas uma borda por pizza." |
 | 2x Coca-Cola 1 Litro Zero Açúcar | 1000 × 2 | 2000 → R$ 20,00 |
 | Pedido do contrato: (Calabresa/Frango + Borda Catupiry) + 2x Coca 1L Zero | 3949 + 2000 | 5949 → R$ 59,49 |
 | Troco para R$ 100,00 num pedido de 5949 | 10000 >= 5949 | ok |
 | Troco para R$ 50,00 num pedido de 5949 | 5000 < 5949 | 400 VALIDATION_ERROR |
-| Pior caso: 30 itens × 20 × (4299+450+450+999) | 30 × 20 × 6198 | 3.718.800 (cabe folgado em `integer`) |
+| Pior caso: 30 itens × 20 × (4299+999+450) (uma borda + cobertura) | 30 × 20 × 5748 | 3.448.800 (cabe folgado em `integer`) |
 
 ## Casos de borda / armadilhas
 - Meio a meio com o mesmo sabor duas vezes (`[id, id]`) → 400 (não é "inteira").
-- 0 ou 3+ sabores → 400. Addon repetido → 400. Addon em bebida → schema rejeita (`addonIds` só existe em item pizza).
+- 0 ou 3+ sabores → 400. Addon repetido → 400. Duas bordas (dois addons com o mesmo `addonGroup`) → 400 "Escolha apenas uma borda por pizza."; borda + Catupiry por cima → ok. Addon em bebida → schema rejeita (`addonIds` só existe em item pizza).
 - Id de sabor que é `drink`/`addon` (ou addon que é `pizza`) → 400 VALIDATION_ERROR.
 - Produto inexistente ou `available = false` → 409 PRODUCT_UNAVAILABLE com `details` listando os itens.
 - `Math.max()` de array vazio é `-Infinity` — por isso `calcPizzaBaseCents` valida antes.
@@ -168,5 +170,6 @@ Resolve ids → produtos do banco, valida kind/disponibilidade, recalcula e mont
 - [ ] Nenhum float/`toFixed`/`parseFloat` em dinheiro; nomes terminam em `Cents`.
 - [ ] `shared/money.js` e `shared/pricing.js` sem imports; mesmos arquivos usados por servidor e browser.
 - [ ] Meio a meio = sabor mais caro; addons somam por pizza e multiplicam pela quantidade.
+- [ ] No máximo 1 addon por `addonGroup` (uma borda) por pizza, validado no `pricing.service`.
 - [ ] Servidor recalcula tudo a partir do banco; testes unitários cobrem a tabela de exemplos acima.
 - [ ] Troco validado contra o subtotal; erro em PT-BR amigável.

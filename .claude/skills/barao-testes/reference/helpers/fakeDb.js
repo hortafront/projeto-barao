@@ -18,9 +18,10 @@ export const IDS = {
 };
 
 const BASE = 'Molho de tomate especial, mussarela, ';
-// Product = { id, categoryId, kind, name, description, priceCents, imageUrl, available, sortOrder }
-const P = (id, slug, kind, name, priceCents, description, sortOrder) =>
-  ({ id, categoryId: CATEGORY_IDS[slug], kind, name, description, priceCents, imageUrl: null, available: true, sortOrder });
+// Product = { id, categoryId, kind, name, description, priceCents, imageUrl, available, sortOrder, addonGroup }
+// addonGroup: 'borda' nas duas bordas (no máximo uma por pizza); null no resto (Catupiry por cima combina com tudo).
+const P = (id, slug, kind, name, priceCents, description, sortOrder, addonGroup = null) =>
+  ({ id, categoryId: CATEGORY_IDS[slug], kind, name, description, priceCents, imageUrl: null, available: true, sortOrder, addonGroup });
 
 export function seedCategories() {
   return [
@@ -46,15 +47,20 @@ export function seedProducts() {
     P(IDS.coca1l, 'bebidas', 'drink', 'Coca-Cola 1 Litro', 1000, '', 3),
     P(IDS.coca1lZero, 'bebidas', 'drink', 'Coca-Cola 1 Litro Zero Açúcar', 1000, '', 4),
     P(IDS.guarana1l, 'bebidas', 'drink', 'Guaraná 1 Litro', 800, '', 5),
-    P(IDS.bordaCatupiry, 'adicionais', 'addon', 'Borda Recheada com Catupiry', 450, '', 1),
-    P(IDS.catupiryCima, 'adicionais', 'addon', 'Finalize com Catupiry por cima', 450, 'Mais cremosidade e sabor em cada fatia', 2),
-    P(IDS.bordaChocolate, 'adicionais', 'addon', 'Borda de Chocolate (Garoto ao Leite)', 999, '', 3),
+    P(IDS.bordaCatupiry, 'adicionais', 'addon', 'Borda Recheada com Catupiry', 450, '', 1, 'borda'),
+    P(IDS.catupiryCima, 'adicionais', 'addon', 'Finalize com Catupiry por cima', 450, 'Mais cremosidade e sabor em cada fatia', 2, null),
+    P(IDS.bordaChocolate, 'adicionais', 'addon', 'Borda de Chocolate (Garoto ao Leite)', 999, '', 3, 'borda'),
   ];
 }
 
-/** Horário: 18:00–23:30 todos os dias (placeholder do seed). weekday 0 = domingo. */
+/**
+ * Horário do seed. weekday 0 = domingo. DIAS confirmados pelo dono: abre seg, qui, sex, sáb, dom;
+ * FECHA terça (2) e quarta (3). O horário 18:00–23:30 ainda é provisório.
+ */
+export const CLOSED_WEEKDAYS = Object.freeze([2, 3]);
 export function seedHours() {
-  return Array.from({ length: 7 }, (_, weekday) => ({ weekday, opensAt: '18:00', closesAt: '23:30', isClosed: false }));
+  return Array.from({ length: 7 }, (_, weekday) =>
+    ({ weekday, opensAt: '18:00', closesAt: '23:30', isClosed: CLOSED_WEEKDAYS.includes(weekday) }));
 }
 
 // ---------------------------------------------------------------- fábrica
@@ -83,10 +89,17 @@ export function createFakeDb(overrides = {}) {
   // 'YYYY-MM-DD' local de Fortaleza (UTC-3 fixo), igual a localDayRangeToIso do repo real
   const fortalezaDate = (iso) => new Date(Date.parse(iso) - 3 * 3600_000).toISOString().slice(0, 10);
   const inRange = (o, from, to) => (!from || fortalezaDate(o.createdAt) >= from) && (!to || fortalezaDate(o.createdAt) <= to);
+  // espelha o check do banco: addon_group is null or kind = 'addon'
+  const assertAddonGroupFitsKind = (p) => {
+    if (p.addonGroup != null && p.kind !== 'addon') throw new Error('fakeDb: addon_group só em kind = addon');
+  };
   const patchProduct = (id, patch) => {
     const p = findProduct(id);
     if (!p) return null;
-    for (const [k, v] of Object.entries(patch)) if (v !== undefined) p[k] = clone(v); // PUT parcial
+    const next = { ...p };
+    for (const [k, v] of Object.entries(patch)) if (v !== undefined) next[k] = clone(v); // PUT parcial
+    assertAddonGroupFitsKind(next);
+    Object.assign(p, next);
     return clone(p);
   };
 
@@ -193,7 +206,8 @@ export function createFakeDb(overrides = {}) {
     async getProductById(id) { return clone(findProduct(id) ?? null); },
     async createProduct(input) {
       state.productSeq += 1;
-      const p = { imageUrl: null, ...clone(input), id: uuid(500 + state.productSeq) };
+      const p = { imageUrl: null, addonGroup: null, ...clone(input), id: uuid(500 + state.productSeq) };
+      assertAddonGroupFitsKind(p);
       state.products.push(p);
       return clone(p);
     },

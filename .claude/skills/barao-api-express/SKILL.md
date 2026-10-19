@@ -19,12 +19,12 @@ Camadas: **rota fina** (HTTP ↔ service) → **service** (regra de negócio, pu
 ## Rotas (contrato)
 | Método e caminho | Middleware extra | Service / repo | Sucesso |
 |---|---|---|---|
-| `GET /api/menu` | — | `db.getMenu()` → mapeia para `{ categories: [{ slug, name, products: [{ id, kind, name, description, priceCents, imageUrl, available }] }] }` | 200 |
+| `GET /api/menu` | — | `db.getMenu()` → mapeia para `{ categories: [{ slug, name, products: [{ id, kind, name, description, priceCents, imageUrl, available, addonGroup }] }] }` (`addonGroup`: `'borda'` \| `null`; ver `reference/app.md` → `menu.routes.js`) | 200 |
 | `GET /api/status` | — | `getStoreStatus(now, hours, override, tz)` | 200 `{ open, reason, nextOpenAt, todayHours }` |
 | `POST /api/orders` | `ordersRateLimit` (10/10 min por IP), `validate(createOrderSchema)` | `createOrder(body, { db, now, timeZone })` | **201** `{ code, subtotalCents, message, whatsappUrl }` |
 | `GET /api/admin-config` | **nenhum** (pública, fora do `requireAdmin`), `Cache-Control: public, max-age=300` | lê `options.supabaseUrl`/`options.supabaseAnonKey` | 200 `{ supabaseUrl, supabaseAnonKey }` |
 | `GET /api/admin/products` | `requireAdmin` (em todo `/api/admin`) | `db.listProducts()` | 200 `{ products: [...] }` |
-| `POST /api/admin/products` | `validate(productCreateSchema)` | `db.createProduct` | 201 |
+| `POST /api/admin/products` | `validate(productCreateSchema)` (inclui `addonGroup: 'borda' \| null`, só em addon) | `db.createProduct` | 201 |
 | `PUT /api/admin/products/:id` | `validate(idParamSchema,'params')`, `validate(productUpdateSchema)` | `db.updateProduct` | 200 / 404 |
 | `DELETE /api/admin/products/:id` | params | `db.deleteProduct(id)` — lança 409 `PRODUCT_HAS_ORDERS` se existir `order_items` com `product_ids @> array[id]`; `false` → 404 | 204 / 404 / 409 |
 | `PATCH /api/admin/products/:id/availability` | `validate(availabilitySchema)` | `db.setProductAvailability` | 200 |
@@ -41,7 +41,7 @@ Detalhes de UI/fluxo do painel: skill `barao-painel-admin`. Interface do `db`: s
 ## Código de erro → HTTP
 | code | status | Quando |
 |---|---|---|
-| `VALIDATION_ERROR` | 400 (413 se payload/arquivo grande) | Zod, JSON inválido, sabor de kind errado, troco < total, imagem inválida |
+| `VALIDATION_ERROR` | 400 (413 se payload/arquivo grande) | Zod, JSON inválido, sabor de kind errado, duas bordas na mesma pizza ("Escolha apenas uma borda por pizza."), `addonGroup` em produto que não é addon, troco < total, imagem inválida |
 | `UNAUTHORIZED` | 401 | Sem Bearer, token inválido/expirado |
 | `FORBIDDEN` | 403 | Logado, mas e-mail fora de `ADMIN_EMAILS` |
 | `NOT_FOUND` | 404 | Rota `/api` inexistente; id não encontrado |
@@ -78,14 +78,14 @@ export function ordersRoutes({ db, options }) {
 Padrão de nomes: cada arquivo exporta uma factory `xxxRoutes({ db, options })` — `menuRoutes`, `statusRoutes`, `ordersRoutes`, `adminRoutes` (em `routes/admin/index.js`, montando `products.routes.js`, `hours.routes.js`, `settings.routes.js`, `orders.routes.js`, `reports.routes.js`). Respostas de leitura pública: `GET /api/menu` com `Cache-Control: public, max-age=30`; `GET /api/status` com `no-store`.
 
 ## Schema do pedido (resumo)
-`createOrderSchema = z.discriminatedUnion('fulfillment', [delivery, pickup])` — `address` obrigatório (`street` 2–120, `number` 1–20, `district` 2–60, `reference` ≤ 120 opcional) só em `delivery`; em `pickup` é descartado (`null`). Itens: `z.discriminatedUnion('kind', [pizza, drink])`; pizza `flavorIds` 1–2 uuids distintos, `addonIds` distintos (default `[]`), `notes` ≤ 140; drink `productId`; `quantity` int 1–20; 1–30 itens. `customer.name` 2–60; `customer.phone` → só dígitos, 10–11. `payment.method` `pix|cash|card`, `changeForCents` int opcional. `notes` ≤ 280.
+`createOrderSchema = z.discriminatedUnion('fulfillment', [delivery, pickup])` — `address` obrigatório (`street` 2–120, `number` 1–20, `district` 2–60, `reference` ≤ 120 opcional) só em `delivery`; em `pickup` é descartado (`null`). Itens: `z.discriminatedUnion('kind', [pizza, drink])`; pizza `flavorIds` 1–2 uuids distintos, `addonIds` distintos (default `[]`; "uma borda por pizza" depende do `addonGroup` do banco → checado no `pricing.service`, não no Zod), `notes` ≤ 140; drink `productId`; `quantity` int 1–20; 1–30 itens. `customer.name` 2–60; `customer.phone` → só dígitos, 10–11. `payment.method` `pix|cash|card`, `changeForCents` int opcional. `notes` ≤ 280.
 Código completo (order, product, hours/settings, query de datas, `idParamSchema`): [reference/schemas.md](reference/schemas.md). Dependência fixada: `"zod": "^3.23.8"` no `package.json` (zod 4 muda `.default()` em `.partial()` e mensagens).
 
 ## Middlewares e app completos
 `AppError`, `asyncHandler`, `validate`, `errorHandler`, `requireAdmin`, `ordersRateLimit`/`adminRateLimit`, `imageUpload` + `sniffImageType`, `requestLogger`, `createApp` e `server.js`: [reference/app.md](reference/app.md).
 
 Pontos-chave:
-- **requireAdmin**: `Authorization: Bearer <token>` → `db.getUserByAccessToken(token)` (repo chama `supabase.auth.getUser(token)`) → e-mail (case-insensitive) em `ADMIN_EMAILS`. Sem header/token inválido → 401; e-mail fora → 403. Lista vazia = ninguém entra.
+- **requireAdmin**: `Authorization: Bearer <token>` → `db.getUserByAccessToken(token)` (repo chama `supabase.auth.getUser(token)`) → e-mail (case-insensitive) em `ADMIN_EMAILS` (produção: `ADMIN_EMAILS=guslolhorta@gmail.com`). Sem header/token inválido → 401; e-mail fora → 403. Lista vazia = ninguém entra.
 - **CSP** (helmet): `default-src 'self'`; scripts `'self'` + `https://cdn.jsdelivr.net` (supabase-js ESM do admin); estilos `fonts.googleapis.com`; fontes `fonts.gstatic.com`; `img-src`/`connect-src` incluem a origem de `SUPABASE_URL` (login do admin). O browser do admin obtém URL + ANON key de `GET /api/admin-config`. Proibido `<script>` inline e `onclick=` no HTML.
 - **Rate-limit**: `express-rate-limit` v7 (`limit`, não `max`); `handler` repassa `AppError('RATE_LIMITED', 429, ...)` para manter o formato único. Atrás de proxy, `options.trustProxy = 1` (env opcional `TRUST_PROXY=1`), senão todos os clientes compartilham o IP do proxy (ou, configurado errado, qualquer um forja `X-Forwarded-For`).
 - **Upload**: `multer.memoryStorage()`, `fileSize` 2 MB, 1 arquivo, campo `image`; conferir bytes mágicos (o `mimetype` vem do cliente); erro de tamanho → 413.

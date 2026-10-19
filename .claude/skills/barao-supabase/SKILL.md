@@ -47,7 +47,7 @@ O que a 0001 cria: tabelas do contrato + checks (endereço obrigatório se `deli
 | `uploadProductImage(id, { buffer, contentType })` | `Product \| null` com `imageUrl` pública |
 | `getUserByAccessToken(token)` | `{ id, email } \| null` (usado por `requireAdmin`) |
 
-`Product = { id, categoryId, kind, name, description, priceCents, imageUrl, available, sortOrder }`
+`Product = { id, categoryId, kind, name, description, priceCents, imageUrl, available, sortOrder, addonGroup }` — `addonGroup` (`addon_group text null`, check `addon_group is null or kind = 'addon'`): `'borda'` nas duas bordas, `null` no resto. Addons do mesmo grupo são mutuamente exclusivos na pizza (regra aplicada no `pricing.service`, não no SQL).
 `Order = { id, code, status, createdAt, customer: { name, phone }, fulfillment, address \| null, payment: { method, changeForCents }, notes, subtotalCents, items: [{ id, kind, description, productIds, flavorNames, addons: [{ name, priceCents }], baseUnitCents, unitPriceCents, quantity, notes, lineTotalCents }] }`
 `draft` de `createOrder`: ver `barao-pedido-whatsapp` (`customer`, `fulfillment`, `address`, `payment`, `notes`, `subtotalCents`, `items` precificados).
 
@@ -69,7 +69,7 @@ Regras do fake: gera códigos `BR-0001`, `BR-0002`... com o mesmo formato; rejei
 
 ## Auth (admin)
 - Usuários admin criados manualmente no painel do Supabase (Authentication → Users), e-mail/senha, "Confirm email" marcado. Desativar sign-up público (Authentication → Providers → Email → *Allow new users to sign up* off).
-- Autorização real = e-mail na env `ADMIN_EMAILS` (vírgula), checada por `requireAdmin` via `db.getUserByAccessToken(token)` (`supabase.auth.getUser(token)`).
+- Autorização real = e-mail na env `ADMIN_EMAILS` (vírgula; produção: `ADMIN_EMAILS=guslolhorta@gmail.com`), checada por `requireAdmin` via `db.getUserByAccessToken(token)` (`supabase.auth.getUser(token)`).
 - **Nunca** chamar `signInWithPassword` no client service-role do servidor — ele passa a usar o JWT do usuário e cai no RLS.
 
 ## Storage

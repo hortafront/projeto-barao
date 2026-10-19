@@ -5,7 +5,7 @@ description: Use quando for escrever, rodar ou corrigir testes do cardápio Bar�
 
 # Barão — Estratégia de testes
 
-Os exemplos de referência foram executados (74 testes verdes, com rotas mínimas de menu/status/admin) contra o código de referência das skills `barao-cardapio-precos`, `barao-pedido-whatsapp`, `barao-api-express` e `barao-supabase`.
+Os exemplos de referência foram executados (89 testes verdes, com rotas mínimas de status/admin — inclusive `POST`/`PUT /api/admin/products` — e o `menu.routes.js` da skill `barao-api-express`) contra o código de referência das skills `barao-cardapio-precos`, `barao-pedido-whatsapp`, `barao-api-express` e `barao-supabase`.
 
 **TDD obrigatório** para `shared/`, `src/services/` e `src/routes/`: escreva o teste, rode e **veja falhar pelo motivo
 certo** (vermelho) → código mínimo para passar (verde) → refatore com tudo verde. Bug corrigido = teste que o reproduz antes.
@@ -46,11 +46,11 @@ filtrar por nome: `node --test --test-name-pattern="meio a meio"`.
 8. Cada teste cria seu próprio `makeApp()` (estado isolado; testes podem rodar em qualquer ordem).
 
 ## Casos obrigatórios (todos com exemplo completo nas referências)
-- **Preço** (`shared/pricing.js` + `priceOrderItems` do `pricing.service.js`): inteira; meio a meio = sabor mais caro (ordem indiferente); addons somam por pizza; quantidade multiplica (pizza + addons); 0 ou 3+ sabores e preço não inteiro → erro; sabores repetidos, addon repetido e kind errado → `VALIDATION_ERROR`; esgotado → `PRODUCT_UNAVAILABLE` com `details`; subtotal do exemplo do contrato = 5949.
+- **Preço** (`shared/pricing.js` + `priceOrderItems` do `pricing.service.js`): inteira; meio a meio = sabor mais caro (ordem indiferente); addons somam por pizza; quantidade multiplica (pizza + addons); 0 ou 3+ sabores e preço não inteiro → erro; sabores repetidos, addon repetido e kind errado → `VALIDATION_ERROR`; esgotado → `PRODUCT_UNAVAILABLE` com `details`; subtotal do exemplo do contrato = 5949; **duas bordas na mesma pizza → `VALIDATION_ERROR` "Escolha apenas uma borda por pizza"** e borda + Catupiry por cima → aceito (unit e rota 400).
 - **Mensagem do WhatsApp**: snapshot do texto exato para entrega + dinheiro com troco (exemplo do contrato), retirada + pix (sem endereço e sem linha de taxa), entrega + cartão sem referência, dinheiro sem troco; qtd 2 (linha da pizza = base × qtd, addon = preço × qtd); mensagem regenerada do pedido salvo = resposta; `whatsappUrl` = `https://wa.me/5585997687641?text=` + `encodeURIComponent(message)`.
-- **Horários** (`hours.service.js`): dentro, fora (com `nextOpenAt`), limites exatos de abertura/fechamento, turno 18:00→00:30 aberto às 00:15 do dia seguinte, `is_closed`, override `open` e `closed`.
-- **POST /api/orders**: 201 feliz (código `BR-0001`, subtotal, mensagem, pedido salvo); preço enviado pelo cliente ignorado; retirada sem endereço; 400 `VALIDATION_ERROR` (tabela de casos) sem salvar nada; 409 `STORE_CLOSED` (horário e override); 409 `PRODUCT_UNAVAILABLE` (sabor e addon esgotados); sem stack trace; 429 `RATE_LIMITED` no 11º pedido (único teste com `rateLimit: true`).
-- **Admin**: 401 sem token / token inválido / sem `Bearer`; 403 e-mail fora de `adminEmails`; 403 com lista vazia (fail closed); 200 autorizado (case-insensitive, com espaços); rotas públicas seguem abertas; `GET /api/admin-config` pública → `{ supabaseUrl, supabaseAnonKey }`; `DELETE /api/admin/products/:id` → 204 (nunca pedido), 409 `PRODUCT_HAS_ORDERS` (id em `order_items.product_ids`), 404 (inexistente); formatos `{ products }`, `{ orders, page, pageSize, total }`, `{ order }`.
+- **Horários** (`hours.service.js`): dentro, fora (com `nextOpenAt`), limites exatos de abertura/fechamento, turno 18:00→00:30 aberto às 00:15 do dia seguinte, `is_closed`, override `open` e `closed`; **dias do seed**: segunda aberta, terça 19:00 fechada com `nextOpenAt` = quinta 18:00 (`-03:00`), pulando terça e quarta.
+- **POST /api/orders**: 201 feliz (código `BR-0001`, subtotal, mensagem, pedido salvo); preço enviado pelo cliente ignorado; retirada sem endereço; 400 `VALIDATION_ERROR` (tabela de casos) sem salvar nada; 409 `STORE_CLOSED` (horário, terça de folga e override); 409 `PRODUCT_UNAVAILABLE` (sabor e addon esgotados); sem stack trace; 429 `RATE_LIMITED` no 11º pedido (único teste com `rateLimit: true`).
+- **Admin**: 401 sem token / token inválido / sem `Bearer`; 403 e-mail fora de `adminEmails`; 403 com lista vazia (fail closed); 200 autorizado (case-insensitive, com espaços); rotas públicas seguem abertas; `GET /api/admin-config` pública → `{ supabaseUrl, supabaseAnonKey }`; `DELETE /api/admin/products/:id` → 204 (nunca pedido), 409 `PRODUCT_HAS_ORDERS` (id em `order_items.product_ids`), 404 (inexistente); formatos `{ products }`, `{ orders, page, pageSize, total }`, `{ order }`; `addonGroup` exposto em `GET /api/menu` e aceito no CRUD admin (grupo em pizza → 400).
 
 ## Esqueleto de um teste novo
 ```js
@@ -76,6 +76,7 @@ describe('GET /api/menu', () => {
 - **Rate limit** (10 req/10 min): `makeApp` passa `rateLimit: false`; sem isso a suíte passa de 10 POSTs e recebe 429. O limiter é criado dentro de `createApp` (store por instância), então o teste do 429 com `rateLimit: true` não contamina os outros.
 - O schema Zod do pedido deve **descartar** campos desconhecidos (padrão do `z.object`), nunca `.strict()` — o teste "preço do cliente ignorado" espera 201.
 - E-mails de admin entram por `options.adminEmails` (o `createApp` lê `ADMIN_EMAILS` do env só como padrão). Não mexa em `process.env` nos testes.
+- Seed de horário: **terça e quarta fechadas** (`CLOSED_WEEKDAYS` no fakeDb); demais 18:00–23:30. Teste que precisa de loja aberta usa domingo/segunda/quinta–sábado (padrão do `makeApp`: domingo 20:00).
 - 2026-10-18 é domingo. Conferir dia da semana de qualquer data nova com `new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Fortaleza', weekday: 'long' })`.
 - Snapshot de mensagem quebrou? Primeiro decida se o **formato** mudou de propósito (atualize a skill `barao-pedido-whatsapp` e o snapshot), senão o bug é no service.
 - Não usar `t.mock.timers` para horário: a regra recebe `now` por injeção, mais simples e explícito.

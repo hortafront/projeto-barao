@@ -64,6 +64,7 @@ describe('POST /api/orders — 400 VALIDATION_ERROR', () => {
     ['3 sabores', () => validOrder({ items: [{ kind: 'pizza', flavorIds: [IDS.frango, IDS.bacon, IDS.mista], addonIds: [], quantity: 1 }] })],
     ['bebida como sabor', () => validOrder({ items: [{ kind: 'pizza', flavorIds: [IDS.coca600], addonIds: [], quantity: 1 }] })],
     ['pizza como addon', () => validOrder({ items: [{ kind: 'pizza', flavorIds: [IDS.frango], addonIds: [IDS.bacon], quantity: 1 }] })],
+    ['duas bordas na mesma pizza', () => validOrder({ items: [{ kind: 'pizza', flavorIds: [IDS.frango], addonIds: [IDS.bordaCatupiry, IDS.bordaChocolate], quantity: 1 }] })],
     ['troco menor que o total', () => validOrder({ payment: { method: 'cash', changeForCents: 5000 } })],
     ['método de pagamento inválido', () => validOrder({ payment: { method: 'boleto' } })],
     ['observação > 280', () => validOrder({ notes: 'x'.repeat(281) })],
@@ -80,6 +81,26 @@ describe('POST /api/orders — 400 VALIDATION_ERROR', () => {
     });
   }
 
+  it('duas bordas → mensagem amigável "Escolha apenas uma borda por pizza"', async () => {
+    const { app } = makeApp();
+    const res = await post(app, validOrder({
+      items: [{ kind: 'pizza', flavorIds: [IDS.calabresa], addonIds: [IDS.bordaCatupiry, IDS.bordaChocolate], quantity: 1 }],
+    }));
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error.code, 'VALIDATION_ERROR');
+    assert.match(res.body.error.message, /Escolha apenas uma borda por pizza/);
+    assert.equal(res.body.error.details[0].path, 'items.0.addonIds');
+  });
+
+  it('borda + Catupiry por cima → 201 (Catupiry por cima combina com qualquer borda)', async () => {
+    const { app } = makeApp();
+    const res = await post(app, validOrder({
+      items: [{ kind: 'pizza', flavorIds: [IDS.frango], addonIds: [IDS.bordaChocolate, IDS.catupiryCima], quantity: 1 }],
+    }));
+    assert.equal(res.status, 201);
+    assert.equal(res.body.subtotalCents, 3499 + 999 + 450);
+  });
+
   it('não vaza stack trace', async () => {
     const { app } = makeApp();
     const res = await post(app, { lixo: true });
@@ -95,6 +116,14 @@ describe('POST /api/orders — 409', () => {
     assert.equal(res.status, 409);
     assert.equal(res.body.error.code, 'STORE_CLOSED');
     assert.equal(db.state.orders.length, 0);
+  });
+
+  it('STORE_CLOSED na terça (folga) com nextOpenAt = quinta 18:00', async () => {
+    const { app } = makeApp({ now: '2026-10-20T22:00:00Z' }); // terça 19:00
+    const res = await post(app, validOrder());
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error.code, 'STORE_CLOSED');
+    assert.equal(new Date(res.body.error.details[0].nextOpenAt).toISOString(), '2026-10-22T21:00:00.000Z'); // qui 18:00 -03:00
   });
 
   it('STORE_CLOSED com override "closed" mesmo dentro do horário', async () => {

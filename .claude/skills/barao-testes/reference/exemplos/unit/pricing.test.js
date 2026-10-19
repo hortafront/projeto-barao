@@ -15,6 +15,7 @@ const frango = { priceCents: 3499 };
 const carneDoSol = { priceCents: 4299 };
 const bordaCatupiry = { priceCents: 450 };
 const bordaChocolate = { priceCents: 999 };
+const catupiryCima = { priceCents: 450 };
 
 describe('calcPizzaUnitCents', () => {
   it('pizza inteira custa o preço do sabor', () => {
@@ -29,7 +30,7 @@ describe('calcPizzaUnitCents', () => {
 
   it('addons somam por pizza', () => {
     assert.equal(calcPizzaUnitCents([calabresa, frango], [bordaCatupiry]), 3949);
-    assert.equal(calcPizzaUnitCents([frango], [bordaCatupiry, bordaChocolate]), 3499 + 450 + 999);
+    assert.equal(calcPizzaUnitCents([frango], [bordaChocolate, catupiryCima]), 3499 + 999 + 450);
   });
 
   it('rejeita 0 ou 3+ sabores', () => {
@@ -87,6 +88,33 @@ describe('priceOrderItems (servidor)', () => {
   it('sabores repetidos → VALIDATION_ERROR', () => {
     assert.throws(() => priceOrderItems([pizza([IDS.frango, IDS.frango])], productsById()),
       (err) => err.code === 'VALIDATION_ERROR' && err.status === 400);
+  });
+
+  it('duas bordas na mesma pizza → VALIDATION_ERROR "Escolha apenas uma borda por pizza"', () => {
+    assert.throws(() => priceOrderItems([pizza([IDS.calabresa], [IDS.bordaCatupiry, IDS.bordaChocolate])], productsById()),
+      (err) => {
+        assert.equal(err.code, 'VALIDATION_ERROR');
+        assert.equal(err.status, 400);
+        assert.match(err.message, /Escolha apenas uma borda por pizza/);
+        assert.equal(err.details[0].path, 'items.0.addonIds');
+        return true;
+      });
+  });
+
+  it('borda + Catupiry por cima é permitido (grupos diferentes)', () => {
+    const [item] = priceOrderItems([pizza([IDS.frango], [IDS.bordaChocolate, IDS.catupiryCima])], productsById());
+    assert.equal(item.baseUnitCents, 3499);
+    assert.equal(item.unitPriceCents, 3499 + 999 + 450);
+    assert.deepEqual(item.addons.map((a) => a.name),
+      ['Borda de Chocolate (Garoto ao Leite)', 'Finalize com Catupiry por cima']);
+  });
+
+  it('uma borda por pizza vale por item: pizzas diferentes podem ter bordas diferentes', () => {
+    const items = priceOrderItems([
+      pizza([IDS.calabresa], [IDS.bordaCatupiry]),
+      pizza([IDS.frango], [IDS.bordaChocolate]),
+    ], productsById());
+    assert.deepEqual(items.map((i) => i.unitPriceCents), [3049 + 450, 3499 + 999]);
   });
 
   it('addon repetido → VALIDATION_ERROR', () => {

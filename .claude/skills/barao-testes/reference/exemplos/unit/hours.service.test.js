@@ -5,7 +5,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { getStoreStatus } from '../../src/services/hours.service.js';
 import { seedHours } from '../helpers/fakeDb.js';
-import { SUNDAY_20H, SUNDAY_15H, SUNDAY_00H15 } from '../helpers/clock.js';
+import { SUNDAY_20H, SUNDAY_15H, SUNDAY_00H15, MONDAY_20H, TUESDAY_19H, THURSDAY_18H } from '../helpers/clock.js';
 
 const status = ({ hours = seedHours(), override = 'auto', now }) => getStoreStatus(new Date(now), hours, override);
 
@@ -55,6 +55,27 @@ describe('getStoreStatus — horários', () => {
   it('dia marcado is_closed fica fechado no horário normal', () => {
     const hours = seedHours().map((d) => (d.weekday === 0 ? { ...d, isClosed: true } : d));
     assert.equal(status({ hours, now: SUNDAY_20H }).open, false);
+  });
+});
+
+describe('getStoreStatus — dias do seed (fecha terça e quarta)', () => {
+  it('segunda 20:00 → aberto', () => {
+    assert.equal(status({ now: MONDAY_20H }).open, true);
+  });
+
+  it('terça 19:00 → fechado; nextOpenAt = quinta 18:00 (-03:00), pulando terça e quarta', () => {
+    const s = status({ now: TUESDAY_19H });
+    assert.equal(s.open, false);
+    assert.equal(s.reason, 'hours');
+    assert.equal(s.todayHours.isClosed, true);
+    assert.equal(new Date(s.nextOpenAt).toISOString(), new Date(THURSDAY_18H).toISOString());
+    assert.equal(new Date(s.nextOpenAt).toISOString(), new Date('2026-10-22T18:00:00-03:00').toISOString());
+  });
+
+  it('segunda 23:30 (fechou) → nextOpenAt = quinta 18:00', () => {
+    const s = status({ now: '2026-10-20T02:30:00Z' }); // seg 23:30
+    assert.equal(s.open, false);
+    assert.equal(new Date(s.nextOpenAt).toISOString(), new Date(THURSDAY_18H).toISOString());
   });
 });
 

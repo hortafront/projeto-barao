@@ -111,6 +111,8 @@ Pizza em **tamanho único**. Valores em reais.
 | Finalize com Catupiry por cima | Mais cremosidade e sabor em cada fatia | R$ 4,50 |
 | Borda de Chocolate (Garoto ao Leite) | — | R$ 9,99 |
 
+> **No máximo uma borda por pizza:** "Borda Recheada com Catupiry" e "Borda de Chocolate (Garoto ao Leite)" são mutuamente exclusivas. "Finalize com Catupiry por cima" é independente e combina com qualquer borda (ou com nenhuma).
+>
 > "Catupiry" e "Garoto" são marcas e aparecem exatamente como no cardápio impresso.
 
 ## 7. Regras de negócio
@@ -119,7 +121,7 @@ Pizza em **tamanho único**. Valores em reais.
 2. **Inteira ou meio a meio.** A pizza pode ter 1 sabor (inteira) ou exatamente 2 sabores diferentes (meio a meio). Não existe pizza de 3 sabores.
 3. **Preço da meio a meio = preço do sabor mais caro.**
    Ex.: Mussarela (R$ 30,49) + Carne do Sol (R$ 42,99) = **R$ 42,99**.
-4. **Adicionais** valem só para pizzas, somam ao preço **de cada pizza**, e cada adicional pode ser escolhido no máximo uma vez por pizza.
+4. **Adicionais** valem só para pizzas, somam ao preço **de cada pizza**, e cada adicional pode ser escolhido no máximo uma vez por pizza. **No máximo uma borda por pizza** (Catupiry **ou** Chocolate, nunca as duas); "Catupiry por cima" combina com qualquer borda. Tentar duas bordas é recusado com "Escolha apenas uma borda por pizza".
    Ex.: 2 pizzas Calabresa/Frango com Borda Recheada com Catupiry = (R$ 34,99 + R$ 4,50) × 2 = **R$ 78,98**.
 5. **Taxa de entrega não é calculada pelo site.** A mensagem informa "Taxa de entrega a combinar" e o atendente combina pelo WhatsApp.
 6. **Retirada no balcão:** sem taxa e sem endereço.
@@ -128,7 +130,7 @@ Pizza em **tamanho único**. Valores em reais.
    - **Dinheiro** — o cliente pode informar "troco para R$ X"; o valor X precisa ser maior ou igual ao subtotal do pedido.
    - **Cartão** — na maquininha, na entrega ou na retirada.
    - Não há pagamento online no site.
-8. **Horário de funcionamento** por dia da semana, com possibilidade de turno que passa da meia-noite (ex.: 18:00 às 00:30). O admin pode forçar a loja **aberta** ou **fechada**. **Pedidos fora do horário são recusados** pelo sistema, com mensagem amigável e o próximo horário de abertura.
+8. **Horário de funcionamento** por dia da semana, com possibilidade de turno que passa da meia-noite (ex.: 18:00 às 00:30). **Dias confirmados:** abre segunda, quinta, sexta, sábado e domingo; **fechado terça e quarta** (horário 18:00–23:30 ainda provisório). O admin pode forçar a loja **aberta** ou **fechada**. **Pedidos fora do horário são recusados** pelo sistema, com mensagem amigável e o próximo horário de abertura.
 9. **Itens esgotados** continuam aparecendo no cardápio, marcados como "Esgotado", e não podem ser pedidos.
 10. **Preço sempre vem do cadastro.** Mesmo que alguém altere a página no navegador, o servidor recalcula tudo a partir do cardápio salvo.
 11. **Código do pedido** sequencial no formato `BR-0001`, `BR-0002`…, citado na mensagem do WhatsApp para facilitar a conversa.
@@ -212,7 +214,7 @@ Exemplos: "Bateu a fome? Monte sua pizza.", "Ops, essa acabou por hoje.", "Estam
 - O cliente tem WhatsApp instalado no celular (ou WhatsApp Web no computador).
 - O atendimento continua no WhatsApp; o site organiza o pedido, mas a confirmação final é humana.
 - A taxa de entrega é combinada caso a caso.
-- O Barão fornecerá fotos, horários reais e os e-mails de quem acessará o painel.
+- O Barão fornecerá fotos e o horário real de abertura/fechamento (os dias e o e-mail do painel já foram informados).
 - Hospedagem em serviço gerenciado (servidor Node + Supabase), com custo baixo ou gratuito no início.
 
 ### Riscos
@@ -229,15 +231,14 @@ Exemplos: "Bateu a fome? Monte sua pizza.", "Ops, essa acabou por hoje.", "Estam
 
 ## 12. Pendências a confirmar com o dono
 
-1. **Horários reais de funcionamento** por dia da semana (o sistema nasce com 18:00–23:30 todos os dias apenas como valor provisório — CONFIRMAR COM O DONO). Há dia de folga? Algum turno passa da meia-noite?
+> **Já respondido pelo dono:** no máximo uma borda por pizza (Catupiry por cima é livre); Marguerita R$ 34,90 confirmado; dias de funcionamento (fechado terça e quarta); e-mail do painel `guslolhorta@gmail.com`.
+
+1. **Horário de abertura/fechamento:** os **dias** já estão confirmados (abre segunda, quinta, sexta, sábado e domingo; **fecha terça e quarta**). Falta confirmar o **horário** — o sistema nasce com 18:00–23:30 nos dias abertos apenas como valor provisório. Algum turno passa da meia-noite?
 2. **Chave Pix:** deseja exibir a chave Pix no site/mensagem ou prefere enviar pelo WhatsApp? Se exibir, qual chave e em nome de quem.
 3. **Fotos dos produtos:** fotos próprias de cada pizza e bebida (ideal: quadradas, boa luz, ≥ 800 px). Enquanto não houver, usaremos imagem padrão com a identidade visual.
 4. **Domínio:** usará domínio próprio (ex.: `pizzariabarao.com.br`) ou subdomínio da hospedagem? Quem registra?
-5. **E-mails do admin:** quais e-mails terão acesso ao painel.
-6. **Meio a meio entre Clássica e Especial:** pode misturar (ex.: Mussarela + Carne do Sol)? **Padrão adotado: sim**, cobrando o sabor mais caro.
-7. **Adicionais na meio a meio:** valem para pizza meio a meio? **Padrão adotado: sim.**
-8. **Duas bordas na mesma pizza:** "Borda Recheada com Catupiry" e "Borda de Chocolate" podem ser escolhidas juntas? **Padrão adotado: sim** (cada adicional no máximo 1x por pizza), até orientação contrária.
-9. **Preço da Marguerita:** confirmar R$ 34,90 (as demais especiais/clássicas terminam em ,49 ou ,99).
-10. **Logo e mascote em arquivo** (vetor ou PNG em alta resolução) para uso no site.
-11. **Número do WhatsApp** (85) 99768-7641 é o definitivo para receber pedidos?
-12. **Bairros atendidos:** há bairros onde não entregam? (O MVP não bloqueia por bairro; serviria para um aviso no checkout.)
+5. **Meio a meio entre Clássica e Especial:** pode misturar (ex.: Mussarela + Carne do Sol)? **Padrão adotado: sim**, cobrando o sabor mais caro.
+6. **Adicionais na meio a meio:** valem para pizza meio a meio? **Padrão adotado: sim.**
+7. **Logo e mascote em arquivo** (vetor ou PNG em alta resolução) para uso no site.
+8. **Número do WhatsApp** (85) 99768-7641 é o definitivo para receber pedidos?
+9. **Bairros atendidos:** há bairros onde não entregam? (O MVP não bloqueia por bairro; serviria para um aviso no checkout.)

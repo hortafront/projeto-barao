@@ -26,14 +26,14 @@ node --test tests/unit/pricing.test.js        # um arquivo só
 node --test --test-name-pattern="meio a meio" # filtra por nome de teste
 ```
 
-### .env (copiar de `.env.example`; nunca commitar `.env`)
+### .env (copiar de `.env.example`, que já traz `ADMIN_EMAILS=guslolhorta@gmail.com`; nunca commitar `.env`)
 | Variável | Uso |
 |---|---|
 | `PORT` | porta do Express |
 | `SUPABASE_URL` | URL do projeto Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | **só servidor**; repositórios usam esta chave |
 | `SUPABASE_ANON_KEY` | pública; entregue ao login do admin por `GET /api/admin-config` (só `signInWithPassword`) |
-| `ADMIN_EMAILS` | e-mails autorizados no painel, separados por vírgula |
+| `ADMIN_EMAILS` | e-mails autorizados no painel, separados por vírgula. Produção: `ADMIN_EMAILS=guslolhorta@gmail.com` |
 | `CORS_ORIGIN` | origem permitida no CORS |
 | `STORE_TIMEZONE` | `America/Fortaleza` |
 | `TRUST_PROXY` | opcional; `1` atrás de proxy (Render/Railway/Nginx) para o rate limit ver o IP real |
@@ -92,7 +92,10 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 2. **Servidor recalcula todo preço** a partir do banco. Qualquer preço enviado pelo cliente é ignorado.
 3. **Meio a meio = preço do sabor mais caro.** Pizza tem 1 sabor (inteira) ou **exatamente 2 sabores distintos**;
    todos os `flavorIds` precisam ser `kind='pizza'`. Tamanho único (modelo deve permitir evoluir).
-4. **Addons só em pizza**, cada addon **no máximo 1x por pizza**, somam ao unitário da pizza.
+4. **Addons só em pizza**, cada addon **no máximo 1x por pizza**, somam ao unitário da pizza. **No máximo 1 addon de cada
+   `addon_group` não nulo por pizza**: as duas bordas (`addon_group = 'borda'`) são mutuamente exclusivas; "Catupiry por
+   cima" (`addon_group` null) combina com qualquer borda. Violação → 400 `VALIDATION_ERROR` "Escolha apenas uma borda por pizza"
+   (validado no `pricing.service`).
    Total do item (`line_total_cents`) = `unit_price_cents` (sabor mais caro + addons) × quantidade. Na mensagem do
    WhatsApp a linha da pizza mostra só `base_unit_cents × quantity` e cada addon vem em linha própria
    (`   + <nome> — R$ (priceCents × quantity)`).
@@ -178,9 +181,8 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 - Calcular frete, pagamento online, cupons, login de cliente: **fora do escopo do MVP**.
 
 ## Pendências conhecidas
-- **Horários reais**: seed usa 18:00–23:30 todos os dias — CONFIRMAR COM O DONO.
-- **Duas bordas**: pode borda Catupiry + borda Chocolate na mesma pizza? Default provisório: permitido — CONFIRMAR COM O DONO.
-- **Marguerita**: o preço R$ 34,90 (3490) está correto? — CONFIRMAR COM O DONO.
+- **Horário de abertura/fechamento**: dias confirmados (abre seg, qui, sex, sáb, dom; fecha ter e qua), mas o horário
+  18:00–23:30 do seed é provisório — confirmar horário de abertura/fechamento com o dono.
 - **Fotos** dos produtos (subir pelo admin; até lá, placeholder).
 - **Domínio** e hospedagem (define `CORS_ORIGIN` e CSP).
-- **E-mails admin** para `ADMIN_EMAILS` e criação dos usuários no Supabase Auth.
+- **Usuário admin no Supabase Auth**: criar `guslolhorta@gmail.com` (Auth → Users) no deploy.
