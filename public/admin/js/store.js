@@ -1,6 +1,6 @@
 // Tela Loja: estado atual, override auto/open/closed (com confirmação) e número do WhatsApp (com máscara).
 
-/** "5585997687641" -> "(85) 99768-7641". Aceita digitação parcial e "+55". */
+/** "5585999990000" -> "(85) 99999-0000". Aceita digitação parcial e "+55". */
 export function maskPhoneBR(value) {
   let d = String(value ?? '').replace(/\D/g, '');
   if (d.length > 11 && d.startsWith('55')) d = d.slice(2);
