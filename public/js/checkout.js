@@ -28,6 +28,12 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
   let afterDrawerClose = null;
   let focusKey = null;
   let submitting = false;
+  let ctx = null; // contexto do envio em andamento: { formError, method, delivery }
+  const submitter = createOrderSubmitter({
+    createOrder,
+    onSuccess: (data) => onCreated(data),
+    onError: (error) => onFailed(error),
+  });
 
   const products = () => getProductsById();
   const subtotal = () => cart.subtotalCents(products());
@@ -140,7 +146,7 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
   function openCheckout() {
     if (checkoutDialog.open || cart.count() === 0) return;
     drawerNotice = '';
-    paintCheckout();
+    if (!submitting) paintCheckout(); // envio em andamento: reabre o mesmo formulário, sem novo POST
     closeCheckoutFn = openDialog(checkoutDialog, {
       onClose: () => { closeCheckoutFn = null; },
       initialFocus: checkoutDialog.querySelector('input'),
@@ -242,15 +248,9 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
     form.elements.phone.addEventListener('input', (e) => { e.target.value = maskPhone(e.target.value); });
     sync();
 
-    const submitter = createOrderSubmitter({
-      createOrder,
-      onSuccess: (data) => onCreated(data, new FormData(form)),
-      onError: (error) => onFailed(error, { formError }),
-    });
-
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      if (submitter.pending) return;
+      if (submitter.pending || submitting) return;
       formError.hidden = true;
       const fields = Object.fromEntries(new FormData(form).entries());
       let payload;
@@ -263,10 +263,14 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
       }
       showErrors({});
       submitting = true;
+      ctx = { formError, method: fields.payment, delivery: fields.fulfillment === 'delivery' };
       submitBtn.disabled = true;
       submitBtn.textContent = 'Enviando…';
-      await submitter.submit(payload);
-      submitting = false;
+      try {
+        await submitter.submit(payload);
+      } finally {
+        submitting = false;
+      }
       if (submitBtn.isConnected) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Enviar pedido pelo WhatsApp';
@@ -294,9 +298,16 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
     }
   }
 
-  function onCreated(data, formData) {
-    const method = formData.get('payment');
-    const delivery = formData.get('fulfillment') === 'delivery';
+  // Se o diálogo foi fechado durante o envio, reabre para o cliente ver o resultado.
+  function ensureCheckoutOpen() {
+    if (checkoutDialog.open) return;
+    if (drawer.open) drawer.close();
+    closeCheckoutFn = openDialog(checkoutDialog, { onClose: () => { closeCheckoutFn = null; } });
+  }
+
+  function onCreated(data) {
+    const { method, delivery } = ctx;
+    ensureCheckoutOpen();
     cart.clear(); // dispara refresh via subscribe
     const link = el('a', { class: 'btn btn--primary btn--block', href: data.whatsappUrl, rel: 'noopener' }, 'Abrir WhatsApp');
     render(checkoutDialog, el('div', { class: 'sheet sheet--confirm' },
@@ -314,7 +325,17 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
     window.location.href = data.whatsappUrl; // mesma aba; o link acima é o fallback
   }
 
-  async function onFailed(error, { formError }) {
+  async function onFailed(error) {
+    const { formError } = ctx;
+    ensureCheckoutOpen();
+    try {
+      await handleFailure(error, formError);
+    } catch {
+      backToDrawer(error?.message || BLOCKED_TEXT);
+    }
+  }
+
+  async function handleFailure(error, formError) {
     const say = (text) => { formError.textContent = text; formError.hidden = false; formError.scrollIntoView?.({ block: 'nearest' }); };
     if (error.code === 'VALIDATION_ERROR') {
       const errors = fieldErrorsFromDetails(error.details);
@@ -346,6 +367,10 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
 
   // Esc não fecha o checkout durante o envio.
   checkoutDialog.addEventListener('cancel', (event) => { if (submitting) event.preventDefault(); });
+  // Clique no fundo não fecha durante o envio (registrado antes do handler de openDialog).
+  checkoutDialog.addEventListener('click', (event) => {
+    if (submitting && event.target === checkoutDialog) event.stopImmediatePropagation();
+  });
 
   $('#cart-open').addEventListener('click', openDrawer);
   cart.subscribe(() => { paintBar(); paintDrawer(); });

@@ -116,3 +116,20 @@ test('createOrderSubmitter: falha chama onError e libera novo envio', async () =
   await submitter.submit({});
   assert.equal(calls, 2);
 });
+
+test('createOrderSubmitter compartilhado: segundo submit devolve a mesma promessa em voo (1 POST)', async () => {
+  const d = deferred();
+  let calls = 0;
+  const submitter = createOrderSubmitter({
+    createOrder: () => { calls += 1; return d.promise; },
+    onSuccess: () => {}, onError: () => {},
+  });
+  // simula dois "formulários" (ex.: checkout reaberto) usando o mesmo submitter
+  const first = submitter.submit({ form: 1 });
+  const second = submitter.submit({ form: 2 });
+  assert.equal(second, first);
+  assert.equal(calls, 1);
+  d.resolve({ ok: true, status: 201, data: {} });
+  await first;
+  assert.equal(submitter.pending, false);
+});

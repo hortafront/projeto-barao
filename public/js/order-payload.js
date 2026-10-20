@@ -99,21 +99,23 @@ export function fieldErrorsFromDetails(details) {
   return out;
 }
 
-/** Envio único: enquanto um POST está pendente, novos submit() são ignorados. */
+/** Envio único: enquanto um POST está pendente, novos submit() não disparam outro e devolvem a mesma promessa. */
 export function createOrderSubmitter({ createOrder, onSuccess, onError }) {
-  let pending = false;
+  let inFlight = null;
   return {
-    get pending() { return pending; },
-    async submit(payload) {
-      if (pending) return;
-      pending = true;
-      try {
-        const res = await createOrder(payload);
-        if (res.ok) onSuccess?.(res.data);
-        else onError?.(res.error);
-      } finally {
-        pending = false;
-      }
+    get pending() { return inFlight !== null; },
+    submit(payload) {
+      if (inFlight) return inFlight;
+      inFlight = (async () => {
+        try {
+          const res = await createOrder(payload);
+          if (res.ok) onSuccess?.(res.data);
+          else onError?.(res.error);
+        } finally {
+          inFlight = null;
+        }
+      })();
+      return inFlight;
     },
   };
 }
