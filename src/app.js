@@ -70,8 +70,16 @@ export function createApp({ db, options = {} } = {}) {
   app.use(express.json({ limit: '20kb' }));
   app.use(requestLogger);
   // 3. estáticos
-  app.use(express.static(path.join(ROOT, 'public'), { extensions: ['html'] }));
-  app.use('/shared', express.static(path.join(ROOT, 'shared')));
+  // .html → no-cache (sempre revalida); js/css/img/shared → 1h
+  const staticOptions = {
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+      else res.setHeader('Cache-Control', 'public, max-age=3600');
+      if (filePath.endsWith('.js')) res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+    },
+  };
+  app.use(express.static(path.join(ROOT, 'public'), { extensions: ['html'], ...staticOptions }));
+  app.use('/shared', express.static(path.join(ROOT, 'shared'), staticOptions));
   // 4. rotas
   app.use('/api/menu', menuRoutes({ db, options: opts }));
   app.use('/api/status', statusRoutes({ db, options: opts }));
