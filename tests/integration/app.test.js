@@ -48,7 +48,7 @@ describe('createApp', () => {
     assert.ok(csp.includes("connect-src 'self' https://fake.supabase.co"));
     assert.ok(csp.includes("style-src 'self' https://fonts.googleapis.com"));
     assert.ok(csp.includes("font-src 'self' https://fonts.gstatic.com"));
-    assert.ok(csp.includes("img-src 'self' data: https://fake.supabase.co"));
+    assert.ok(csp.includes("img-src 'self' data: blob: https://fake.supabase.co"));
     assert.equal(res.headers['x-powered-by'], undefined);
   });
 

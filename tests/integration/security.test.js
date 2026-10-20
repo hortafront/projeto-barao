@@ -33,7 +33,7 @@ test('CSP: cada diretiva do spec §13', async () => {
   assert.deepEqual(csp['script-src'], ["'self'", 'https://cdn.jsdelivr.net']);
   assert.deepEqual(csp['style-src'], ["'self'", 'https://fonts.googleapis.com']);
   assert.deepEqual(csp['font-src'], ["'self'", 'https://fonts.gstatic.com']);
-  assert.deepEqual(csp['img-src'], ["'self'", 'data:', 'https://fake.supabase.co']);
+  assert.deepEqual(csp['img-src'], ["'self'", 'data:', 'blob:', 'https://fake.supabase.co']);
   assert.deepEqual(csp['connect-src'], ["'self'", 'https://fake.supabase.co']);
   assert.deepEqual(csp['frame-ancestors'], ["'none'"]);
   assert.deepEqual(csp['object-src'], ["'none'"]);
@@ -53,20 +53,20 @@ test('trustProxy: options.trustProxy vira trust proxy do Express', () => {
   assert.equal(makeApp().app.get('trust proxy'), false);
 });
 
-test('estáticos: /shared/pricing.js com cache de 1h e JS', async () => {
+test('estáticos: /shared/pricing.js com no-cache e JS', async () => {
   const { app } = makeApp();
   const res = await request(app).get('/shared/pricing.js');
   assert.equal(res.status, 200);
   assert.match(res.headers['content-type'], /text\/javascript/);
-  assert.match(res.headers['cache-control'], /max-age=3600/);
+  assert.equal(res.headers['cache-control'], 'no-cache');
 });
 
-test('estáticos: /js, /css e /img com max-age=3600; HTML com no-cache', async () => {
+test('estáticos: /js e /css com no-cache (evita módulos misturados após deploy); /img com max-age=3600; HTML com no-cache', async () => {
   const { app } = makeApp();
   for (const url of ['/js/dom.js', '/css/tokens.css']) {
     const res = await request(app).get(url);
     assert.equal(res.status, 200, url);
-    assert.match(res.headers['cache-control'], /public, max-age=3600/, url);
+    assert.match(res.headers['cache-control'], /^no-cache$/, url);
   }
   const img = files.find((f) => rel(f).startsWith('img/'));
   if (img) {

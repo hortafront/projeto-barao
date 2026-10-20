@@ -30,7 +30,7 @@ function cspDirectives(supabaseUrl, isProduction) {
     'script-src': ["'self'", 'https://cdn.jsdelivr.net'], // supabase-js ESM no /admin
     'style-src': ["'self'", 'https://fonts.googleapis.com'],
     'font-src': ["'self'", 'https://fonts.gstatic.com'],
-    'img-src': ["'self'", 'data:', ...supabase], // imagens do bucket product-images
+    'img-src': ["'self'", 'data:', 'blob:', ...supabase], // bucket product-images + preview (blob:) do upload no admin
     'connect-src': ["'self'", ...supabase], // login do admin no Supabase Auth
     'form-action': ["'self'"],
     'frame-ancestors': ["'none'"],
@@ -70,10 +70,10 @@ export function createApp({ db, options = {} } = {}) {
   app.use(express.json({ limit: '20kb' }));
   app.use(requestLogger);
   // 3. estáticos
-  // .html → no-cache (sempre revalida); js/css/img/shared → 1h
+  // html/js/css (inclui /shared) → no-cache (revalida por ETag; evita módulos misturados após deploy); img → 1h
   const staticOptions = {
     setHeaders(res, filePath) {
-      if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+      if (/\.(html|js|css)$/.test(filePath)) res.setHeader('Cache-Control', 'no-cache');
       else res.setHeader('Cache-Control', 'public, max-age=3600');
       if (filePath.endsWith('.js')) res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
     },
