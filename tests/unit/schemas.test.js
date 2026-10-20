@@ -47,6 +47,8 @@ test('pedido: rejeições', () => {
   fails(createOrderSchema, order({ address: undefined }), ['address']);
   fails(createOrderSchema, order({ customer: { name: 'João', phone: '859999999' } }), ['customer', 'phone']);
   fails(createOrderSchema, order({ customer: { name: 'J', phone: '85999999999' } }), ['customer', 'name']);
+  fails(createOrderSchema, order({ customer: { name: '🍕', phone: '85999999999' } }), ['customer', 'name']);
+  ok(createOrderSchema, order({ customer: { name: 'Jo', phone: '85999999999' } }));
   fails(createOrderSchema, order({ notes: 'x'.repeat(281) }), ['notes']);
   fails(createOrderSchema, order({ items: [pizza({ notes: 'x'.repeat(141) })] }), ['items', 0, 'notes']);
   fails(createOrderSchema, order({ address: address({ number: '12345678901' }) }), ['address', 'number']);

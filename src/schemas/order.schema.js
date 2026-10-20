@@ -4,10 +4,14 @@ const uuid = z.string().uuid('Item inválido.');
 const distinct = (arr) => new Set(arr).size === arr.length;
 
 // Texto livre: troca surrogates soltos por U+FFFD antes de validar, depois aplica trim e limites.
+// Limites contam code points (como char_length do Postgres), não unidades UTF-16.
 const freeText = (min, max, msg) =>
   z.string()
     .transform((s) => s.toWellFormed())
-    .pipe(z.string().trim().min(min, msg).max(max, msg));
+    .pipe(z.string().trim().refine((s) => {
+      const n = [...s].length;
+      return n >= min && n <= max;
+    }, msg));
 
 // Opcional: vazio/ausente vira null.
 const optionalText = (max, msg) =>
