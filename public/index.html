@@ -44,13 +44,19 @@
   </header>
 
   <section class="hero" aria-labelledby="hero-title">
-    <p class="hero__welcome">Seja bem-vindo(a)!</p>
-    <h1 class="hero__title" id="hero-title">
-      <span class="hero__script">Pizzaria</span>
-      <span class="hero__name">Barão</span>
-    </h1>
-    <p class="hero__rule" aria-hidden="true"><span></span><i></i><span></span></p>
-    <p class="hero__slogan">Peça agora e saboreie!</p>
+    <div class="hero__emblem">
+      <h1 class="hero__title" id="hero-title">
+        <svg class="hero__arc" viewBox="0 0 300 92" aria-hidden="true" focusable="false">
+          <path id="hero-arc-path" d="M34 88 A132 132 0 0 1 266 88" fill="none"/>
+          <text><textPath href="#hero-arc-path" startOffset="50%" text-anchor="middle">Pizzaria</textPath></text>
+        </svg>
+        <span class="visually-hidden">Pizzaria </span>
+        <span class="hero__name">Barão</span>
+      </h1>
+      <p class="hero__ribbon"><span>Peça agora e saboreie!</span></p>
+    </div>
+    <p class="hero__welcome">Seja bem-vindo(a)! Monte sua pizza, inteira ou meio a meio, e finalize o pedido pelo WhatsApp.</p>
+    <a class="btn btn--primary hero__cta" href="#menu">Ver o cardápio</a>
   </section>
 
   <section class="status-banner" id="status-banner" hidden></section>

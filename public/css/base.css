@@ -103,79 +103,120 @@ a { color: var(--color-accent); }
   line-height: 1;
 }
 
+/* Hero = o emblema do cardápio impresso: "PIZZARIA" em arco, "Barão" em script,
+   fita com o slogan, tudo diante da boca de um forno a lenha. */
 .hero {
   position: relative;
-  padding: var(--space-6) var(--gutter) var(--space-5);
+  padding: var(--space-6) var(--gutter) var(--space-7);
   text-align: center;
   background:
     radial-gradient(ellipse at 50% 0%, var(--green-700) 0%, transparent 70%),
-    var(--texture-noise);
-  border-bottom: var(--border-hair);
+    var(--texture-noise),
+    var(--color-bg);
+  border-bottom: var(--border-frame-double);
 }
 
-.hero__welcome {
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-semibold);
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--color-text-strong);
+.hero__emblem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
+/* o h1 global é caixa alta condensada; aqui o título é o logotipo */
 .hero__title {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: var(--space-2);
-  /* espaço para o til de "BARÃO" acima das maiúsculas */
-  line-height: var(--lh-tight);
-}
-
-.hero__script {
-  font-family: var(--font-script);
-  font-size: var(--fs-hero-script);
-  font-weight: var(--fw-regular);
-  color: var(--gold-400);
-  text-shadow: var(--shadow-md);
-  /* o h1 global aplica caixa alta e tracking; a fonte script não deve herdar */
   text-transform: none;
   letter-spacing: normal;
+  line-height: 1;
+}
+
+.hero__arc {
+  display: block;
+  width: min(18rem, 80vw);
+  height: auto;
+  /* o vão abaixo do arco é vazio no centro: "Barão" se encaixa nele */
+  margin-bottom: calc(var(--space-7) * -1);
+  overflow: visible;
+}
+.hero__arc text {
+  fill: var(--gold-500);
+  font-family: var(--font-display);
+  font-size: var(--fs-hero-arc);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-arc);
+  text-transform: uppercase;
 }
 
 .hero__name {
-  font-family: var(--font-display);
-  font-size: var(--fs-hero);
-  font-weight: var(--fw-bold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-title);
-  text-shadow: var(--shadow-md);
-}
-
-.hero__rule {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-  margin: var(--space-3) auto;
-  max-width: 16rem;
-}
-.hero__rule span { flex: 1; height: 1px; background: var(--color-frame); }
-.hero__rule i {
-  width: var(--space-2);
-  height: var(--space-2);
-  background: var(--ember-400);
-  transform: rotate(45deg);
-}
-
-.hero__slogan {
   font-family: var(--font-script);
-  font-size: var(--fs-xl);
-  color: var(--color-text-strong);
+  font-size: var(--fs-hero);
+  font-weight: var(--fw-regular);
+  /* Pacifico tem ascendentes altas: espaço para o til do "ã" */
+  line-height: 1.25;
+  padding-inline: var(--space-2);
+  color: var(--gold-400);
+  text-shadow: var(--shadow-sign);
+}
+
+.hero__ribbon {
+  margin-top: var(--space-1);
+  filter: drop-shadow(0 3px 0 var(--brick-700));
+}
+.hero__ribbon span {
+  display: block;
+  padding: var(--space-2) var(--space-6);
+  background: var(--brick-600);
+  color: var(--cream-100);
+  font-family: var(--font-display);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-ribbon);
+  text-transform: uppercase;
+  white-space: nowrap;
+  /* pontas recortadas de fita + costura dourada em cima e embaixo */
+  clip-path: polygon(0 0, 100% 0, calc(100% - 0.9em) 50%, 100% 100%, 0 100%, 0.9em 50%);
+  box-shadow: inset 0 2px 0 var(--gold-500), inset 0 -2px 0 var(--gold-500);
+}
+
+.hero__welcome {
+  max-width: 30ch;
+  margin: var(--space-5) auto 0;
+  color: var(--color-text);
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+  text-wrap: balance;
+}
+
+.hero__cta {
+  margin-top: var(--space-4);
+}
+
+/* destino do "Ver o cardápio": não fica escondido sob o header e as abas fixos */
+#menu {
+  scroll-margin-top: calc(var(--header-h) + var(--tabs-h));
+}
+
+@media (min-width: 400px) {
+  .hero__ribbon span { font-size: var(--fs-md); }
 }
 
 @media (min-width: 768px) {
-  .hero { padding: var(--space-7) var(--gutter) var(--space-6); }
-  .hero__name { letter-spacing: 0.1em; }
+  .hero { padding: var(--space-7) var(--gutter) var(--space-8); }
+  .hero__arc { width: 22rem; }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .status-banner {
