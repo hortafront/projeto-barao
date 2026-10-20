@@ -2,7 +2,7 @@ import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import '../../helpers/browserAliases.js';
 
-const { request, createOrder } = await import('../../../public/js/api.js');
+const { request, createOrder, getMenu } = await import('../../../public/js/api.js');
 
 const realFetch = globalThis.fetch;
 beforeEach(() => { globalThis.fetch = realFetch; });
@@ -59,4 +59,22 @@ test('createOrder envia POST JSON com o payload', async () => {
   assert.equal(seen.init.method, 'POST');
   assert.equal(seen.init.headers['Content-Type'], 'application/json');
   assert.equal(seen.init.body, JSON.stringify(payload));
+});
+
+test('createOrder usa timeout de 30 s', async () => {
+  const realSet = globalThis.setTimeout;
+  const delays = [];
+  globalThis.setTimeout = (fn, ms, ...a) => { delays.push(ms); return realSet(fn, ms, ...a); };
+  globalThis.fetch = async () => jsonResponse(201, {});
+  try { await createOrder({}); } finally { globalThis.setTimeout = realSet; }
+  assert.ok(delays.includes(30000), `delays: ${delays}`);
+});
+
+test('getMenu({ fresh: true }) pede cache no-cache; sem fresh não define cache', async () => {
+  const seen = [];
+  globalThis.fetch = async (url, init) => { seen.push(init); return jsonResponse(200, {}); };
+  await getMenu();
+  await getMenu({ fresh: true });
+  assert.equal(seen[0].cache, undefined);
+  assert.equal(seen[1].cache, 'no-cache');
 });

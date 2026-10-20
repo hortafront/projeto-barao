@@ -69,7 +69,7 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
         el('p', { class: 'cart-line__name' }, cart.describe(line, map)),
         ...addons.map((name) => el('p', { class: 'cart-line__extra' }, `+ ${name}`)),
         line.notes && el('p', { class: 'cart-line__extra' }, `Obs.: ${line.notes}`),
-        unavailable.has(id) && el('p', { class: 'cart-line__alert' }, 'Indisponível no momento')),
+        unavailable.has(id) && el('p', { class: 'cart-line__alert' }, 'Esgotado — remova para continuar')),
       el('div', { class: 'cart-line__controls' },
         el('div', { class: 'stepper' },
           el('button', {
@@ -359,7 +359,7 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
       return;
     }
     if (error.code === 'NETWORK') {
-      say('Sem conexão. Seu carrinho foi mantido.');
+      say('Não tivemos resposta. Seu pedido pode ter sido registrado — confira no WhatsApp da loja antes de enviar de novo. Seu carrinho foi mantido.');
       return;
     }
     say(error.message || 'Algo deu errado. Seu carrinho foi mantido. Tente novamente.');

@@ -5,7 +5,7 @@ const GENERIC_MESSAGE = 'Algo deu errado. Tente novamente.';
  * Chama a API. Nunca rejeita:
  *   { ok: true, status, data } | { ok: false, error: { status, code, message, details } }
  */
-export async function request(path, { method = 'GET', body, timeoutMs = 10000 } = {}) {
+export async function request(path, { method = 'GET', body, timeoutMs = 10000, cache } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -14,6 +14,7 @@ export async function request(path, { method = 'GET', body, timeoutMs = 10000 } 
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
+      ...(cache ? { cache } : {}),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
@@ -36,6 +37,6 @@ export async function request(path, { method = 'GET', body, timeoutMs = 10000 } 
   }
 }
 
-export const getMenu = () => request('/api/menu');
+export const getMenu = ({ fresh = false } = {}) => request('/api/menu', fresh ? { cache: 'no-cache' } : {});
 export const getStatus = () => request('/api/status');
-export const createOrder = (payload) => request('/api/orders', { method: 'POST', body: payload });
+export const createOrder = (payload) => request('/api/orders', { method: 'POST', body: payload, timeoutMs: 30000 });

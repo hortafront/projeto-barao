@@ -42,6 +42,16 @@ function storeOpen() {
   return status?.open === true;
 }
 
+function addToCart(item, product) {
+  const res = cart.add(item);
+  if (!res.ok) {
+    toast(res.reason === 'CART_FULL' ? 'Seu carrinho está cheio (máx. 30 itens).' : 'Não foi possível adicionar ao carrinho.');
+    return;
+  }
+  checkout?.refresh();
+  toast(`${product.name} adicionada`);
+}
+
 function paintMenu() {
   renderMenu(root, tabsRoot, menu, {
     storeOpen: storeOpen(),
@@ -49,15 +59,11 @@ function paintMenu() {
       menu,
       productsById,
       onAdd: (item) => {
-        cart.add(item);
-        checkout?.refresh();
-        toast(`${product.name} adicionada`);
+        addToCart(item, product);
       },
     }),
     onAddDrink: (product) => {
-      cart.add({ kind: 'drink', productId: product.id, quantity: 1 });
-      checkout?.refresh();
-      toast(`${product.name} adicionada`);
+      addToCart({ kind: 'drink', productId: product.id, quantity: 1 }, product);
     },
   });
 }
@@ -67,9 +73,9 @@ function paintStatus() {
 }
 
 /** Carrega menu + status. Devolve true em sucesso; em falha mostra o estado de erro. */
-async function load() {
+async function load({ fresh = false } = {}) {
   renderMenuLoading(root);
-  const [menuRes, statusRes] = await Promise.all([getMenu(), getStatus()]);
+  const [menuRes, statusRes] = await Promise.all([getMenu({ fresh }), getStatus()]);
   if (!menuRes.ok || !statusRes.ok) {
     renderMenuError(root, load);
     return false;
@@ -89,7 +95,7 @@ async function load() {
       cart,
       getProductsById: () => productsById,
       getStatus,
-      reloadMenu: load,
+      reloadMenu: () => load({ fresh: true }),
       onStoreClosed: refreshStatus,
     });
   }
