@@ -61,7 +61,7 @@ Plano gratuito "dorme" e o primeiro pedido seria lento: prefira o plano pago bá
 | `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` | Secreta |
 | `SUPABASE_ANON_KEY` | `eyJ...` | Pública |
 | `ADMIN_EMAILS` | `guslolhorta@gmail.com` | Vários: separados por vírgula |
-| `CORS_ORIGIN` | URL do site, ex.: `https://cardapio.seudominio.com.br` | Sem barra no final; ajuste quando o domínio mudar |
+| `CORS_ORIGIN` | URL do site, ex.: `https://cardapio.seudominio.com.br` | URL pública do site, sem barra no final; ajuste quando o domínio mudar. Vazio bloqueia chamadas vindas de outras origens (tudo bem quando site e API estão no mesmo domínio) |
 | `STORE_TIMEZONE` | `America/Fortaleza` | |
 | `TRUST_PROXY` | `1` | Atrás do proxy do Render/Railway; sem isso o rate limit enxerga o IP do proxy |
 | `NODE_ENV` | `production` | Liga `upgrade-insecure-requests` na CSP |
@@ -70,7 +70,7 @@ Plano gratuito "dorme" e o primeiro pedido seria lento: prefira o plano pago bá
 
 1. Na hospedagem: **Settings → Custom Domains**, adicione o domínio/subdomínio.
 2. No registro do domínio, crie o **CNAME** apontando para o endereço indicado. O HTTPS é emitido pela plataforma.
-3. Atualize `CORS_ORIGIN` para a URL final e faça novo deploy. Depois de trocar o domínio, não é preciso mexer no CSP (a única origem externa é o Supabase, vinda de `SUPABASE_URL`).
+3. Atualize `CORS_ORIGIN` para a URL final e faça novo deploy. Depois de trocar o domínio, não é preciso mexer no CSP (as origens externas são o Supabase, vindo de `SUPABASE_URL`, o Google Fonts e o `cdn.jsdelivr.net`).
 
 ## 7. Backups
 
