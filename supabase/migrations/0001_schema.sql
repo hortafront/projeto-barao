@@ -9,6 +9,7 @@ create extension if not exists pgcrypto;
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   new.updated_at = now();
@@ -91,6 +92,7 @@ create or replace function public.next_order_code()
 returns text
 language sql
 volatile
+set search_path = public
 as $$
   select 'BR-' || case when n < 10000 then lpad(n::text, 4, '0') else n::text end
   from (select nextval('public.order_code_seq') as n) s;
@@ -247,12 +249,6 @@ begin
   return jsonb_build_object('id', v_order_id, 'code', v_code, 'created_at', v_created_at);
 end;
 $$;
-
--- Funções só podem ser executadas pelo service role
-revoke all on function public.create_order(jsonb)   from public, anon, authenticated;
-revoke all on function public.next_order_code()     from public, anon, authenticated;
-grant execute on function public.create_order(jsonb) to service_role;
-grant execute on function public.next_order_code()   to service_role;
 
 -- ---------------------------------------------------------------------------
 -- Resumo para o admin (pedidos cancelados não entram)

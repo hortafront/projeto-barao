@@ -32,7 +32,10 @@ from (values
   ('adicionais', 'addon', 'Finalize com Catupiry por cima',       'Mais cremosidade e sabor em cada fatia', 450, 2, null),
   ('adicionais', 'addon', 'Borda de Chocolate (Garoto ao Leite)', '',                                       999, 3, 'borda')
 ) as v(category_slug, kind, name, description, price_cents, sort_order, addon_group)
-join public.categories c on c.slug = v.category_slug;
+join public.categories c on c.slug = v.category_slug
+where not exists (
+  select 1 from public.products p where p.category_id = c.id and p.name = v.name
+);
 
 -- Horários (0 = domingo). Confirmado pelo dono: abre seg, qui, sex, sáb, dom das 18:00 às 23:30;
 -- fecha ter (2) e qua (3).
@@ -40,5 +43,3 @@ insert into public.business_hours (weekday, opens_at, closes_at, is_closed)
 select d, time '18:00', time '23:30', d in (2, 3)
 from generate_series(0, 6) as d
 on conflict (weekday) do nothing;
-
-insert into public.settings (id, store_override, whatsapp_number) values (1, 'auto', '5585997687641') on conflict (id) do nothing;
