@@ -76,7 +76,8 @@ export function createFakeDb(overrides = {}) {
   const now = overrides.now ?? (() => new Date());
   const state = {
     categories: seedCategories(),
-    products: overrides.products ?? seedProducts(),
+    products: (overrides.products ?? seedProducts())
+      .map((p) => ({ createdAt: now().toISOString(), updatedAt: now().toISOString(), ...p })),
     hours: overrides.hours ?? seedHours(),
     settings: { storeOverride: 'auto', whatsappNumber: '5585997687641', updatedAt: now().toISOString(), ...overrides.settings },
     orders: [],      // Order[] — inspecione em testes: db.state.orders
@@ -99,6 +100,7 @@ export function createFakeDb(overrides = {}) {
     const next = { ...p };
     for (const [k, v] of Object.entries(patch)) if (v !== undefined) next[k] = clone(v); // PUT parcial
     assertAddonGroupFitsKind(next);
+    next.updatedAt = now().toISOString();
     Object.assign(p, next);
     return clone(p);
   };
@@ -211,7 +213,8 @@ export function createFakeDb(overrides = {}) {
     async getProductById(id) { return clone(findProduct(id) ?? null); },
     async createProduct(input) {
       state.productSeq += 1;
-      const p = { imageUrl: null, addonGroup: null, ...clone(input), id: uuid(500 + state.productSeq) };
+      const stamp = now().toISOString();
+      const p = { imageUrl: null, addonGroup: null, ...clone(input), id: uuid(500 + state.productSeq), createdAt: stamp, updatedAt: stamp };
       assertAddonGroupFitsKind(p);
       state.products.push(p);
       return clone(p);
