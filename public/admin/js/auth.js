@@ -24,7 +24,11 @@ export function getSupabase() {
           autoRefreshToken: true,
           detectSessionInUrl: false,
         },
-      }));
+      }))
+    .catch((err) => {
+      supabasePromise = undefined; // não guardar promessa rejeitada: a próxima tentativa refaz o fetch
+      throw err;
+    });
   return supabasePromise;
 }
 

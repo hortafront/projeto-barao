@@ -117,6 +117,16 @@ async function initPanel() {
   show();
 }
 
+async function startPanel() {
+  try {
+    await initPanel();
+  } catch {
+    render($('#panel-root'),
+      el('p', { class: 'field-error', role: 'alert' }, 'Não foi possível carregar o painel. Verifique sua conexão e tente de novo.'),
+      el('button', { type: 'button', class: 'btn', onclick: () => window.location.reload() }, 'Recarregar'));
+  }
+}
+
 const page = document.body.dataset.page;
 if (page === 'login') initLogin();
-else if (page === 'panel') initPanel();
+else if (page === 'panel') startPanel();
