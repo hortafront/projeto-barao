@@ -126,7 +126,8 @@ a { color: var(--color-accent); }
   flex-direction: column;
   align-items: center;
   margin-top: var(--space-2);
-  line-height: 1;
+  /* espaço para o til de "BARÃO" acima das maiúsculas */
+  line-height: var(--lh-tight);
 }
 
 .hero__script {
@@ -135,10 +136,9 @@ a { color: var(--color-accent); }
   font-weight: var(--fw-regular);
   color: var(--gold-400);
   text-shadow: var(--shadow-md);
-  /* sobrepõe a base de "BARÃO" para o efeito de letreiro */
-  margin-bottom: calc(var(--space-3) * -1);
-  position: relative;
-  z-index: 1;
+  /* o h1 global aplica caixa alta e tracking; a fonte script não deve herdar */
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .hero__name {
