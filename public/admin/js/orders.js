@@ -112,13 +112,13 @@ export async function mount(container, ctx) {
   render(container,
     el('h1', {}, 'Pedidos'),
     filter,
-    el('div', { class: 'form-row--inline' }, refreshBtn, countNode),
+    el('div', { class: 'form-row form-row--inline' }, refreshBtn, countNode),
     errorNode, listNode, moreBtn);
 
   function orderCard(order) {
     return el('button', {
       type: 'button',
-      class: 'admin-card admin-card--clickable',
+      class: `admin-card admin-card--clickable admin-card--order${order.status === 'received' ? ' admin-card--received' : ''}`,
       dataset: { orderId: order.id },
       onclick: () => openDetail(order.id),
     },

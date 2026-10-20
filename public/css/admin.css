@@ -208,3 +208,20 @@ input[type="checkbox"], input[type="radio"] { width: 24px; height: 24px; accent-
   .bottom-nav { justify-content: center; }
   .bottom-nav__item { max-width: 8rem; }
 }
+
+/* ---------- Pedidos e Resumo ---------- */
+.date-filter { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
+.date-filter .form-row { margin-bottom: 0; }
+.date-filter input[type="date"] { min-height: var(--admin-tap); }
+.date-filter__shortcuts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.date-filter__shortcuts .btn { min-height: var(--admin-tap); }
+
+.admin-card--order { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.admin-card--received { border-left: var(--space-2) solid var(--color-accent); background: var(--color-surface-hover); }
+
+.order-dialog { max-height: 90dvh; overflow-y: auto; }
+.order-detail { display: grid; gap: var(--space-3); padding: var(--space-4); }
+.order-detail h2, .order-detail p { margin: 0; }
+.order-detail .btn { min-height: var(--admin-tap); }
+.order-items { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.order-items li { padding: var(--space-3); border: var(--border-hair); border-radius: var(--radius-md); }
