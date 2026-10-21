@@ -140,3 +140,48 @@ test('productUpdateSchema', () => {
   assert.equal(d.addonGroup, null);
   fails(productUpdateSchema, prod({ addonGroup: 'borda' }), ['addonGroup']);
 });
+
+// ---- mensagens de validação em PT-BR (min e max separadas) ----
+function msgs(schema, input, path) {
+  const r = schema.safeParse(input);
+  assert.equal(r.success, false, 'deveria falhar');
+  return r.error.issues.filter((i) => JSON.stringify(i.path) === JSON.stringify(path)).map((i) => i.message);
+}
+const long = (n) => 'a'.repeat(n);
+
+test('mensagens: mínimo e máximo de texto são distintas', () => {
+  const addr = (over) => order({ address: address(over) });
+  assert.deepEqual(msgs(createOrderSchema, addr({ street: '' }), ['address', 'street']), ['Informe a rua.']);
+  assert.deepEqual(msgs(createOrderSchema, addr({ street: long(121) }), ['address', 'street']), ['A rua deve ter no máximo 120 caracteres.']);
+  assert.deepEqual(msgs(createOrderSchema, addr({ number: '' }), ['address', 'number']), ['Informe o número.']);
+  assert.deepEqual(msgs(createOrderSchema, addr({ number: long(11) }), ['address', 'number']), ['O número deve ter no máximo 10 caracteres.']);
+  assert.deepEqual(msgs(createOrderSchema, addr({ district: '' }), ['address', 'district']), ['Informe o bairro.']);
+  assert.deepEqual(msgs(createOrderSchema, addr({ district: long(61) }), ['address', 'district']), ['O bairro deve ter no máximo 60 caracteres.']);
+  assert.deepEqual(msgs(createOrderSchema, addr({ reference: long(121) }), ['address', 'reference']), ['A referência deve ter no máximo 120 caracteres.']);
+  const cust = (name) => order({ customer: { name, phone: '85999999999' } });
+  assert.deepEqual(msgs(createOrderSchema, cust('J'), ['customer', 'name']), ['Informe seu nome.']);
+  assert.deepEqual(msgs(createOrderSchema, cust(long(61)), ['customer', 'name']), ['O nome deve ter no máximo 60 caracteres.']);
+  assert.deepEqual(msgs(createOrderSchema, order({ notes: long(281) }), ['notes']), ['As observações devem ter no máximo 280 caracteres.']);
+  assert.deepEqual(msgs(createOrderSchema, order({ items: [pizza({ notes: long(141) })] }), ['items', 0, 'notes']), ['A observação do item deve ter no máximo 140 caracteres.']);
+});
+
+test('mensagens: campo de texto ausente vem em PT-BR', () => {
+  assert.deepEqual(msgs(createOrderSchema, order({ address: { number: '1', district: 'Centro' } }), ['address', 'street']), ['Informe a rua.']);
+});
+
+test('mensagens: quantidade, adicionais, enums e uuid em PT-BR', () => {
+  const qty = 'Quantidade deve ser entre 1 e 20.';
+  for (const quantity of [0, 21, 1.5, '2']) {
+    assert.deepEqual(msgs(createOrderSchema, order({ items: [pizza({ quantity })] }), ['items', 0, 'quantity']), [qty], `pizza ${quantity}`);
+  }
+  assert.deepEqual(
+    msgs(createOrderSchema, order({ items: [{ kind: 'drink', productId: U1, quantity: 0 }] }), ['items', 0, 'quantity']), [qty]);
+  const eleven = Array.from({ length: 11 }, (_, i) => `${String(i).padStart(8, '0')}-1111-4111-8111-111111111111`);
+  assert.deepEqual(msgs(createOrderSchema, order({ items: [pizza({ addonIds: eleven })] }), ['items', 0, 'addonIds']), ['No máximo 10 adicionais por pizza.']);
+  assert.deepEqual(msgs(createOrderSchema, order({ items: [pizza({ flavorIds: ['x'] })] }), ['items', 0, 'flavorIds', 0]), ['Item inválido.']);
+  assert.deepEqual(msgs(createOrderSchema, order({ fulfillment: 'x' }), ['fulfillment']), ['Escolha entrega ou retirada.']);
+  assert.deepEqual(msgs(createOrderSchema, order({ payment: { method: 'x' } }), ['payment', 'method']), ['Escolha a forma de pagamento.']);
+  assert.deepEqual(msgs(createOrderSchema, order({ payment: {} }), ['payment', 'method']), ['Escolha a forma de pagamento.']);
+  assert.deepEqual(msgs(createOrderSchema, order({ items: [{ kind: 'x' }] }), ['items', 0, 'kind']), ['Item inválido.']);
+  assert.deepEqual(msgs(createOrderSchema, order({ payment: { method: 'cash', changeForCents: -1 } }), ['payment', 'changeForCents']), ['Valor do troco inválido.']);
+});

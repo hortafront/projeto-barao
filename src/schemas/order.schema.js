@@ -1,27 +1,29 @@
 import { z } from 'zod';
 
-const uuid = z.string().uuid('Item inválido.');
+const uuid = z.string({ message: 'Item inválido.' }).uuid('Item inválido.');
+const QTY_MSG = 'Quantidade deve ser entre 1 e 20.';
+const quantity = z.number({ message: QTY_MSG }).int(QTY_MSG).min(1, QTY_MSG).max(20, QTY_MSG);
 const distinct = (arr) => new Set(arr).size === arr.length;
 
 // Texto livre: troca surrogates soltos por U+FFFD antes de validar, depois aplica trim e limites.
 // Limites contam code points (como char_length do Postgres), não unidades UTF-16.
-const freeText = (min, max, msg) =>
-  z.string()
+// Mensagens separadas: minMsg (vazio/curto ou ausente) e maxMsg (comprimento acima do limite).
+const freeText = (min, max, minMsg, maxMsg) =>
+  z.string({ message: minMsg })
     .transform((s) => s.toWellFormed())
-    .pipe(z.string().trim().refine((s) => {
-      const n = [...s].length;
-      return n >= min && n <= max;
-    }, msg));
+    .pipe(z.string().trim()
+      .refine((s) => [...s].length >= min, minMsg)
+      .refine((s) => [...s].length <= max, maxMsg));
 
 // Opcional: vazio/ausente vira null.
-const optionalText = (max, msg) =>
-  freeText(0, max, msg).optional().transform((v) => v || null);
+const optionalText = (max, maxMsg) =>
+  freeText(0, max, maxMsg, maxMsg).optional().transform((v) => v || null);
 
 export const addressSchema = z.object({
-  street: freeText(2, 120, 'Informe a rua.'),
-  number: freeText(1, 10, 'Informe o número (até 10 caracteres).'),
-  district: freeText(2, 60, 'Informe o bairro.'),
-  reference: optionalText(120, 'Referência: até 120 caracteres.'),
+  street: freeText(2, 120, 'Informe a rua.', 'A rua deve ter no máximo 120 caracteres.'),
+  number: freeText(1, 10, 'Informe o número.', 'O número deve ter no máximo 10 caracteres.'),
+  district: freeText(2, 60, 'Informe o bairro.', 'O bairro deve ter no máximo 60 caracteres.'),
+  reference: optionalText(120, 'A referência deve ter no máximo 120 caracteres.'),
 });
 
 const pizzaItemSchema = z.object({
@@ -30,31 +32,32 @@ const pizzaItemSchema = z.object({
     .min(1, 'Escolha pelo menos 1 sabor.')
     .max(2, 'No máximo 2 sabores (meio a meio).')
     .refine(distinct, 'Escolha dois sabores diferentes.'),
-  addonIds: z.array(uuid).max(10).default([]).refine(distinct, 'Cada adicional só pode ser escolhido uma vez.'),
-  quantity: z.number().int('Quantidade inválida.').min(1).max(20),
-  notes: optionalText(140, 'Observação do item: até 140 caracteres.'),
+  addonIds: z.array(uuid).max(10, 'No máximo 10 adicionais por pizza.').default([]).refine(distinct, 'Cada adicional só pode ser escolhido uma vez.'),
+  quantity,
+  notes: optionalText(140, 'A observação do item deve ter no máximo 140 caracteres.'),
 });
 
 const drinkItemSchema = z.object({
   kind: z.literal('drink'),
   productId: uuid,
-  quantity: z.number().int('Quantidade inválida.').min(1).max(20),
+  quantity,
 });
 
-export const orderItemSchema = z.discriminatedUnion('kind', [pizzaItemSchema, drinkItemSchema]);
+export const orderItemSchema = z.discriminatedUnion('kind', [pizzaItemSchema, drinkItemSchema], { errorMap: () => ({ message: 'Item inválido.' }) });
 
 const baseOrder = {
   customer: z.object({
-    name: freeText(2, 60, 'Informe seu nome.'),
+    name: freeText(2, 60, 'Informe seu nome.', 'O nome deve ter no máximo 60 caracteres.'),
     phone: z.string()
       .transform((s) => s.replace(/\D/g, ''))
       .pipe(z.string().regex(/^\d{10,11}$/, 'Telefone com DDD (10 ou 11 dígitos).')),
   }),
   payment: z.object({
-    method: z.enum(['pix', 'cash', 'card']),
-    changeForCents: z.number().int().min(0).max(10_000_000).nullable().optional(),
+    method: z.enum(['pix', 'cash', 'card'], { message: 'Escolha a forma de pagamento.' }),
+    changeForCents: z.number({ message: 'Valor do troco inválido.' }).int('Valor do troco inválido.')
+      .min(0, 'Valor do troco inválido.').max(10_000_000, 'Valor do troco inválido.').nullable().optional(),
   }),
-  notes: optionalText(280, 'Observações: até 280 caracteres.'),
+  notes: optionalText(280, 'As observações devem ter no máximo 280 caracteres.'),
   items: z.array(orderItemSchema).min(1, 'Seu carrinho está vazio.').max(30, 'Máximo de 30 itens por pedido.'),
 };
 
@@ -70,7 +73,9 @@ const pickupOrderSchema = z.object({
   address: z.unknown().optional().transform(() => null), // ignorado na retirada
 });
 
-export const createOrderSchema = z.discriminatedUnion('fulfillment', [deliveryOrderSchema, pickupOrderSchema]);
+export const createOrderSchema = z.discriminatedUnion('fulfillment', [deliveryOrderSchema, pickupOrderSchema], {
+  errorMap: () => ({ message: 'Escolha entrega ou retirada.' }),
+});
 
 // Admin. A ordem from <= to, o limite de 366 dias e o padrão "hoje" ficam no dateRange.service.
 const isoDate = z.string()
