@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import '../../helpers/browserAliases.js';
 
-const { todayInFortaleza, presetRange, formatTimeFortaleza, STATUS_LABEL } =
+const { todayInFortaleza, presetRange, formatTimeFortaleza, STATUS_LABEL, mergeOrderPages } =
   await import('../../../public/admin/js/orders.js');
 
 const SUNDAY_20H = new Date('2026-10-18T23:00:00Z'); // domingo 20:00 em Fortaleza
@@ -32,4 +32,22 @@ test('formatTimeFortaleza converte UTC para HH:MM local', () => {
 
 test('STATUS_LABEL', () => {
   assert.deepEqual(STATUS_LABEL, { received: 'Recebido', confirmed: 'Confirmado', canceled: 'Cancelado' });
+});
+
+test('mergeOrderPages: caso comum anexa tudo na ordem', () => {
+  const { list, added } = mergeOrderPages([{ id: 'a' }, { id: 'b' }], [{ id: 'c' }, { id: 'd' }]);
+  assert.deepEqual(list.map((o) => o.id), ['a', 'b', 'c', 'd']);
+  assert.equal(added, 2);
+});
+
+test('mergeOrderPages: ignora pedido já listado (deslocamento por pedido novo)', () => {
+  const { list, added } = mergeOrderPages([{ id: 'a' }, { id: 'b' }], [{ id: 'b' }, { id: 'c' }]);
+  assert.deepEqual(list.map((o) => o.id), ['a', 'b', 'c']);
+  assert.equal(added, 1);
+});
+
+test('mergeOrderPages: duplicado dentro da própria página também é ignorado', () => {
+  const { list, added } = mergeOrderPages([], [{ id: 'a' }, { id: 'a' }]);
+  assert.equal(list.length, 1);
+  assert.equal(added, 1);
 });

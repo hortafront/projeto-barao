@@ -44,6 +44,20 @@ export function formatTimeFortaleza(iso) {
   return timeFmt.format(new Date(iso));
 }
 
+/** Anexa a página seguinte sem repetir pedidos já listados (a paginação é por deslocamento). */
+export function mergeOrderPages(current, incoming) {
+  const seen = new Set(current.map((o) => o.id));
+  const list = [...current];
+  let added = 0;
+  for (const order of incoming) {
+    if (seen.has(order.id)) continue;
+    seen.add(order.id);
+    list.push(order);
+    added += 1;
+  }
+  return { list, added };
+}
+
 function formatDateBR(ymd) {
   const [y, m, d] = ymd.split('-');
   return `${d}/${m}/${y}`;
@@ -94,7 +108,7 @@ export function dateFilter({ range, presets, onChange }) {
 
 export async function mount(container, ctx) {
   const { adminApi, toast, confirmDialog, withSaving } = ctx;
-  const state = { range: presetRange('hoje', new Date()), page: 1, orders: [], total: 0, loading: false };
+  const state = { range: presetRange('hoje', new Date()), page: 1, orders: [], total: 0, loading: false, exhausted: false };
   let requestId = 0;
 
   const listNode = el('div', { class: 'admin-list', 'aria-live': 'polite' });
@@ -139,12 +153,12 @@ export async function mount(container, ctx) {
       render(listNode, state.orders.map(orderCard));
     }
     countNode.textContent = state.total ? `${state.orders.length} de ${state.total} pedidos` : '';
-    moreBtn.hidden = state.orders.length >= state.total;
+    moreBtn.hidden = state.exhausted || state.orders.length >= state.total;
   }
 
   async function load(reset) {
     const mine = ++requestId;
-    if (reset) { state.page = 1; state.orders = []; state.total = 0; }
+    if (reset) { state.page = 1; state.orders = []; state.total = 0; state.exhausted = false; }
     else state.page += 1;
     state.loading = true;
     errorNode.hidden = true;
@@ -155,7 +169,14 @@ export async function mount(container, ctx) {
       const q = new URLSearchParams({ from: state.range.from, to: state.range.to, page: String(state.page) });
       const data = await adminApi(`/api/admin/orders?${q}`);
       if (mine !== requestId) return;
-      state.orders = reset ? data.orders : [...state.orders, ...data.orders];
+      if (reset) {
+        state.orders = data.orders;
+      } else {
+        const { list, added } = mergeOrderPages(state.orders, data.orders);
+        state.orders = list;
+        // Página sem nenhum pedido novo: acabou (evita botão preso se o total cresceu no meio).
+        if (added === 0) state.exhausted = true;
+      }
       state.total = data.total;
     } catch (err) {
       if (mine !== requestId) return;
