@@ -7,7 +7,9 @@ import { AppError } from './errors/AppError.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { requireAdmin } from './middleware/requireAdmin.js';
-import { adminRateLimit } from './middleware/rateLimit.js';
+import { requireCustomer } from './middleware/requireCustomer.js';
+import { adminRateLimit, accountRateLimit } from './middleware/rateLimit.js';
+import { meRoutes } from './routes/me.routes.js';
 import { menuRoutes } from './routes/menu.routes.js';
 import { statusRoutes } from './routes/status.routes.js';
 import { ordersRoutes } from './routes/orders.routes.js';
@@ -27,7 +29,7 @@ function cspDirectives(supabaseUrl, isProduction) {
   const supabase = supabaseUrl ? [new URL(supabaseUrl).origin] : [];
   return {
     'default-src': ["'self'"],
-    'script-src': ["'self'", 'https://cdn.jsdelivr.net'], // supabase-js ESM no /admin
+    'script-src': ["'self'", 'https://cdn.jsdelivr.net'], // supabase-js ESM (login do admin e do cliente)
     'style-src': ["'self'", 'https://fonts.googleapis.com'],
     'font-src': ["'self'", 'https://fonts.gstatic.com'],
     'img-src': ["'self'", 'data:', 'blob:', ...supabase], // bucket product-images + preview (blob:) do upload no admin
@@ -90,6 +92,10 @@ export function createApp({ db, options = {} } = {}) {
     adminRateLimit({ enabled: opts.rateLimit }),
     requireAdmin({ db, adminEmails: opts.adminEmails }),
     adminRoutes({ db, options: opts }));
+  app.use('/api/me',
+    accountRateLimit({ enabled: opts.rateLimit }),
+    requireCustomer({ db }),
+    meRoutes({ db, options: opts }));
   // 5. 404
   app.use('/api', (req, res, next) => next(new AppError('NOT_FOUND', 404, 'Não encontramos o que você procurou.')));
   app.use((req, res) => res.status(404).type('text/plain').send('Página não encontrada'));
