@@ -30,11 +30,12 @@ describe('POST /api/admin/products/:id/image', () => {
 
   it('texto com contentType image/png (assinatura falsa) → 400 e nada salvo', async () => {
     const { app, db } = makeApp({ users });
+    const before = (await db.getProductById(IDS.frango)).imageUrl;
     const res = await request(app).post(url(IDS.frango)).set(auth)
       .attach('image', Buffer.from('isto não é um png'), { filename: 'f.png', contentType: 'image/png' });
     assert.equal(res.status, 400);
     assert.equal(res.body.error.code, 'VALIDATION_ERROR');
-    assert.equal((await db.getProductById(IDS.frango)).imageUrl, null);
+    assert.equal((await db.getProductById(IDS.frango)).imageUrl, before);
   });
 
   it('2 MB + 1 byte → 413 VALIDATION_ERROR', async () => {

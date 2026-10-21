@@ -13,7 +13,7 @@ async function messageFor(body) {
   const res = await request(app).post('/api/orders').send(body);
   assert.equal(res.status, 201, JSON.stringify(res.body));
   // a URL deve carregar exatamente a mensagem, codificada com encodeURIComponent
-  assert.equal(res.body.whatsappUrl, `https://wa.me/5585997687641?text=${encodeURIComponent(res.body.message)}`);
+  assert.equal(res.body.whatsappUrl, `https://wa.me/5585992732247?text=${encodeURIComponent(res.body.message)}`);
   return normalizeSpaces(res.body.message);
 }
 

@@ -38,6 +38,7 @@ export function createOrdersRepo(supabase) {
         .select('*, order_items(*)', { count: 'exact' })
         .gte('created_at', fromIso).lt('created_at', toIso)
         .order('created_at', { ascending: false })
+        .order('position', { referencedTable: 'order_items' })
         .range(offset, offset + pageSize - 1);
       if (error) throw dbError('listOrders', error);
       return { orders: data.map(toOrder), total: count ?? 0, page, pageSize };
@@ -45,14 +46,16 @@ export function createOrdersRepo(supabase) {
 
     async getOrderById(id) {
       const { data, error } = await supabase
-        .from('orders').select('*, order_items(*)').eq('id', id).maybeSingle();
+        .from('orders').select('*, order_items(*)').eq('id', id)
+        .order('position', { referencedTable: 'order_items' }).maybeSingle();
       if (error) throw dbError('getOrderById', error);
       return data ? toOrder(data) : null;
     },
 
     async updateOrderStatus(id, status) {
       const { data, error } = await supabase
-        .from('orders').update({ status }).eq('id', id).select('*, order_items(*)').maybeSingle();
+        .from('orders').update({ status }).eq('id', id).select('*, order_items(*)')
+        .order('position', { referencedTable: 'order_items' }).maybeSingle();
       if (error) throw dbError('updateOrderStatus', error);
       return data ? toOrder(data) : null;
     },

@@ -13,7 +13,7 @@ describe('/api/admin/settings', () => {
     const res = await request(app).get('/api/admin/settings').set(auth);
     assert.equal(res.status, 200);
     assert.equal(res.body.storeOverride, 'auto');
-    assert.equal(res.body.whatsappNumber, '5585997687641');
+    assert.equal(res.body.whatsappNumber, '5585992732247');
     assert.ok('updatedAt' in res.body);
   });
 
@@ -34,7 +34,7 @@ describe('/api/admin/settings', () => {
     const put = await request(app).put('/api/admin/settings').set(auth).send({ storeOverride: 'closed' });
     assert.equal(put.status, 200);
     assert.equal(put.body.storeOverride, 'closed');
-    assert.equal(put.body.whatsappNumber, '5585997687641');
+    assert.equal(put.body.whatsappNumber, '5585992732247');
   });
 
   it('número inválido (máscara, sem 55, curto/longo) ou corpo vazio → 400 VALIDATION_ERROR e nada muda', async () => {
@@ -47,6 +47,6 @@ describe('/api/admin/settings', () => {
     }
     const empty = await request(app).put('/api/admin/settings').set(auth).send({});
     assert.equal(empty.status, 400);
-    assert.equal((await db.getSettings()).whatsappNumber, '5585997687641');
+    assert.equal((await db.getSettings()).whatsappNumber, '5585992732247');
   });
 });

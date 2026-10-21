@@ -81,7 +81,7 @@ Plano gratuito "dorme" e o primeiro pedido seria lento: prefira o plano pago bá
 
 ## Pendências do dono
 
-- **Número definitivo do WhatsApp**: alterar pelo painel, aba **Loja** (só dígitos, formato `55` + DDD + número). O valor atual vem do seed (`settings.whatsapp_number`).
+- **Número definitivo do WhatsApp**: alterar pelo painel, aba **Loja** (só dígitos, formato `55` + DDD + número). O valor atual vem do seed (`settings.whatsapp_number`): provisoriamente `5585992732247` — (85) 99273-2247 —, até o dono enviar o número definitivo.
 - **Fotos dos produtos**: o dono envia; subir pelo painel (Produtos → editar → foto, jpeg/png/webp até 2 MB). Até lá aparece o placeholder.
 - **Logo e mascote**: enviar os arquivos para colocar em `public/img/`.
 - **Domínio** do site (define o `CORS_ORIGIN`).

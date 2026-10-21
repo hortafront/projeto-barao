@@ -54,8 +54,8 @@ test('retirada + pix, sem obs', () => {
 });
 
 test('url usa encodeURIComponent', () => {
-  const url = buildWhatsAppUrl('5585997687641', 'Olá *Barão*\n🍕');
-  assert.equal(url, 'https://wa.me/5585997687641?text=Ol%C3%A1%20*Bar%C3%A3o*%0A%F0%9F%8D%95');
+  const url = buildWhatsAppUrl('5585992732247', 'Olá *Barão*\n🍕');
+  assert.equal(url, 'https://wa.me/5585992732247?text=Ol%C3%A1%20*Bar%C3%A3o*%0A%F0%9F%8D%95');
 });
 
 test('telefone', () => {
@@ -108,7 +108,7 @@ test('endereço com quebra de linha vira uma única linha Entrega', () => {
 
 test('buildWhatsAppUrl: roundtrip e número inválido', () => {
   const msg = buildOrderMessage(order);
-  const url = buildWhatsAppUrl('5585997687641', msg);
+  const url = buildWhatsAppUrl('5585992732247', msg);
   assert.equal(decodeURIComponent(url.split('?text=')[1]), msg);
   assert.throws(() => buildWhatsAppUrl('123', 'x'));
 });

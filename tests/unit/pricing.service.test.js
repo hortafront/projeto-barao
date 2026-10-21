@@ -94,7 +94,7 @@ describe('priceOrderItems (servidor)', () => {
     });
   });
 
-  it('sem nome nenhum → mensagem genérica; vários nomes unidos por ", "', () => {
+  it('sem nome nenhum → mensagem genérica; 2 e 3 nomes no plural com "e"', () => {
     const ghost = '00000000-0000-4000-8000-0000000000ff';
     assert.throws(() => priceOrderItems([pizza([ghost])], productsById()),
       (err) => err.message === 'Ops! Alguns itens acabaram por hoje. Remova do carrinho para continuar.');
@@ -102,7 +102,10 @@ describe('priceOrderItems (servidor)', () => {
     map.get(IDS.bacon).available = false;
     map.get(IDS.frango).available = false;
     assert.throws(() => priceOrderItems([pizza([IDS.bacon]), pizza([IDS.frango])], map),
-      (err) => err.message === 'Ops! Bacon, Frango acabou por hoje. Remova do carrinho para continuar.');
+      (err) => err.message === 'Ops! Bacon e Frango acabaram por hoje. Remova do carrinho para continuar.');
+    map.get(IDS.portuguesa).available = false;
+    assert.throws(() => priceOrderItems([pizza([IDS.bacon]), pizza([IDS.frango]), pizza([IDS.portuguesa])], map),
+      (err) => err.message === 'Ops! Bacon, Frango e Portuguesa acabaram por hoje. Remova do carrinho para continuar.');
   });
 });
 
