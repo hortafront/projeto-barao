@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createCustomersRepo } from '../../src/db/repositories/customers.repo.js';
+import { createOrdersRepo } from '../../src/db/repositories/orders.repo.js';
 import { toAddress } from '../../src/db/repositories/mappers.js';
 
 const ROW = {
@@ -110,4 +111,20 @@ test('deleteCustomerAccount chama auth.admin.deleteUser; erro vira INTERNAL', as
   assert.ok(has(s.calls, 'deleteUser', 'u'));
   s = stub({ data: null, error: { message: 'boom' } });
   await assert.rejects(createCustomersRepo(s.supabase).deleteCustomerAccount('u'), (e) => e.code === 'INTERNAL');
+});
+
+test('orders.createOrder envia customer_id no payload da rpc (null quando anônimo)', async () => {
+  const draft = {
+    customer: { name: 'João', phone: '85999999999' }, fulfillment: 'pickup', address: null,
+    payment: { method: 'pix' }, subtotalCents: 3049,
+    items: [{ kind: 'pizza', description: 'Calabresa', productIds: ['p'], flavorNames: ['Calabresa'], addons: [],
+      baseUnitCents: 3049, unitPriceCents: 3049, quantity: 1, lineTotalCents: 3049 }],
+  };
+  const run = async (extra) => {
+    const { supabase, calls } = stub({ data: { id: 'o', code: 'BR-0001', created_at: 'x' }, error: null });
+    await createOrdersRepo(supabase).createOrder({ ...draft, ...extra });
+    return calls.find((c) => c[0] === 'rpc')[2].payload.customer_id;
+  };
+  assert.equal(await run({ customerId: 'u' }), 'u');
+  assert.equal(await run({}), null);
 });
