@@ -20,8 +20,8 @@ export const IDS = {
 const BASE = 'Molho de tomate especial, mussarela, ';
 // Product = { id, categoryId, kind, name, description, priceCents, imageUrl, available, sortOrder, addonGroup }
 // addonGroup: 'borda' nas duas bordas (no máximo uma por pizza); null no resto (Catupiry por cima combina com tudo).
-const P = (id, slug, kind, name, priceCents, description, sortOrder, addonGroup = null) =>
-  ({ id, categoryId: CATEGORY_IDS[slug], kind, name, description, priceCents, imageUrl: null, available: true, sortOrder, addonGroup });
+const P = (id, slug, kind, name, priceCents, description, sortOrder, addonGroup = null, imageUrl = null) =>
+  ({ id, categoryId: CATEGORY_IDS[slug], kind, name, description, priceCents, imageUrl, available: true, sortOrder, addonGroup });
 
 export function seedCategories() {
   return [
@@ -34,19 +34,19 @@ export function seedCategories() {
 
 export function seedProducts() {
   return [
-    P(IDS.mista, 'classicas', 'pizza', 'Mista', 3049, `${BASE}presunto, calabresa, cebola, azeitona e orégano`, 1),
-    P(IDS.calabresa, 'classicas', 'pizza', 'Calabresa', 3049, `${BASE}calabresa, cebola, azeitona e orégano`, 2),
-    P(IDS.mussarela, 'classicas', 'pizza', 'Mussarela', 3049, `${BASE}tomate, azeitona e orégano`, 3),
-    P(IDS.marguerita, 'classicas', 'pizza', 'Marguerita', 3490, `${BASE}manjericão, tomate, parmesão e orégano`, 4),
-    P(IDS.frango, 'especiais', 'pizza', 'Frango', 3499, `${BASE}frango, milho, azeitona e orégano`, 1),
-    P(IDS.portuguesa, 'especiais', 'pizza', 'Portuguesa', 3499, `${BASE}presunto, ovos, cebola, pimentão, milho, azeitona e orégano`, 2),
-    P(IDS.bacon, 'especiais', 'pizza', 'Bacon', 3999, `${BASE}bacon, azeitona e orégano`, 3),
-    P(IDS.carneDoSol, 'especiais', 'pizza', 'Carne do Sol', 4299, `${BASE}carne do sol, cebola roxa, azeitona e orégano`, 4),
-    P(IDS.coca600, 'bebidas', 'drink', 'Coca-Cola 600ml', 600, '', 1),
-    P(IDS.coca600Zero, 'bebidas', 'drink', 'Coca-Cola 600ml Zero Açúcar', 600, '', 2),
-    P(IDS.coca1l, 'bebidas', 'drink', 'Coca-Cola 1 Litro', 1000, '', 3),
-    P(IDS.coca1lZero, 'bebidas', 'drink', 'Coca-Cola 1 Litro Zero Açúcar', 1000, '', 4),
-    P(IDS.guarana1l, 'bebidas', 'drink', 'Guaraná 1 Litro', 800, '', 5),
+    P(IDS.mista, 'classicas', 'pizza', 'Mista', 3049, `${BASE}presunto, calabresa, cebola, azeitona e orégano`, 1, null, '/img/products/mista.webp'),
+    P(IDS.calabresa, 'classicas', 'pizza', 'Calabresa', 3049, `${BASE}calabresa, cebola, azeitona e orégano`, 2, null, '/img/products/calabresa.webp'),
+    P(IDS.mussarela, 'classicas', 'pizza', 'Mussarela', 3049, `${BASE}tomate, azeitona e orégano`, 3, null, '/img/products/mussarela.webp'),
+    P(IDS.marguerita, 'classicas', 'pizza', 'Marguerita', 3490, `${BASE}manjericão, tomate, parmesão e orégano`, 4, null, '/img/products/marguerita.webp'),
+    P(IDS.frango, 'especiais', 'pizza', 'Frango', 3499, `${BASE}frango, milho, azeitona e orégano`, 1, null, '/img/products/frango.webp'),
+    P(IDS.portuguesa, 'especiais', 'pizza', 'Portuguesa', 3499, `${BASE}presunto, ovos, cebola, pimentão, milho, azeitona e orégano`, 2, null, '/img/products/portuguesa.webp'),
+    P(IDS.bacon, 'especiais', 'pizza', 'Bacon', 3999, `${BASE}bacon, azeitona e orégano`, 3, null, '/img/products/bacon.webp'),
+    P(IDS.carneDoSol, 'especiais', 'pizza', 'Carne do Sol', 4299, `${BASE}carne do sol, cebola roxa, azeitona e orégano`, 4, null, '/img/products/carne-do-sol.webp'),
+    P(IDS.coca600, 'bebidas', 'drink', 'Coca-Cola 600ml', 600, '', 1, null, '/img/products/coca-cola-600.webp'),
+    P(IDS.coca600Zero, 'bebidas', 'drink', 'Coca-Cola 600ml Zero Açúcar', 600, '', 2, null, '/img/products/coca-cola-600-zero.webp'),
+    P(IDS.coca1l, 'bebidas', 'drink', 'Coca-Cola 1 Litro', 1000, '', 3, null, '/img/products/coca-cola-1l.webp'),
+    P(IDS.coca1lZero, 'bebidas', 'drink', 'Coca-Cola 1 Litro Zero Açúcar', 1000, '', 4, null, '/img/products/coca-cola-1l-zero.webp'),
+    P(IDS.guarana1l, 'bebidas', 'drink', 'Guaraná 1 Litro', 800, '', 5, null, '/img/products/guarana-1l.webp'),
     P(IDS.bordaCatupiry, 'adicionais', 'addon', 'Borda Recheada com Catupiry', 450, '', 1, 'borda'),
     P(IDS.catupiryCima, 'adicionais', 'addon', 'Finalize com Catupiry por cima', 450, 'Mais cremosidade e sabor em cada fatia', 2, null),
     P(IDS.bordaChocolate, 'adicionais', 'addon', 'Borda de Chocolate (Garoto ao Leite)', 999, '', 3, 'borda'),
