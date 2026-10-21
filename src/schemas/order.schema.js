@@ -8,7 +8,7 @@ const distinct = (arr) => new Set(arr).size === arr.length;
 // Texto livre: troca surrogates soltos por U+FFFD antes de validar, depois aplica trim e limites.
 // Limites contam code points (como char_length do Postgres), não unidades UTF-16.
 // Mensagens separadas: minMsg (vazio/curto ou ausente) e maxMsg (comprimento acima do limite).
-const freeText = (min, max, minMsg, maxMsg) =>
+export const freeText = (min, max, minMsg, maxMsg) =>
   z.string({ message: minMsg })
     .transform((s) => s.toWellFormed())
     .pipe(z.string().trim()
@@ -16,8 +16,12 @@ const freeText = (min, max, minMsg, maxMsg) =>
       .refine((s) => [...s].length <= max, maxMsg));
 
 // Opcional: vazio/ausente vira null.
-const optionalText = (max, maxMsg) =>
+export const optionalText = (max, maxMsg) =>
   freeText(0, max, maxMsg, maxMsg).optional().transform((v) => v || null);
+
+export const phoneSchema = z.string()
+  .transform((s) => s.replace(/\D/g, ''))
+  .pipe(z.string().regex(/^\d{10,11}$/, 'Telefone com DDD (10 ou 11 dígitos).'));
 
 export const addressSchema = z.object({
   street: freeText(2, 120, 'Informe a rua.', 'A rua deve ter no máximo 120 caracteres.'),
@@ -48,9 +52,7 @@ export const orderItemSchema = z.discriminatedUnion('kind', [pizzaItemSchema, dr
 const baseOrder = {
   customer: z.object({
     name: freeText(2, 60, 'Informe seu nome.', 'O nome deve ter no máximo 60 caracteres.'),
-    phone: z.string()
-      .transform((s) => s.replace(/\D/g, ''))
-      .pipe(z.string().regex(/^\d{10,11}$/, 'Telefone com DDD (10 ou 11 dígitos).')),
+    phone: phoneSchema,
   }),
   payment: z.object({
     method: z.enum(['pix', 'cash', 'card'], { message: 'Escolha a forma de pagamento.' }),
