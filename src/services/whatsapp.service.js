@@ -60,7 +60,7 @@ export function buildOrderMessage(order) {
   return lines.join('\n');
 }
 
-/** number: só dígitos com DDI (ex.: '5585997687641'). */
+/** number: só dígitos com DDI (ex.: '5585999990000'). */
 export function buildWhatsAppUrl(number, text) {
   const digits = String(number ?? '').replace(/\D/g, '');
   if (!/^\d{12,13}$/.test(digits)) throw new Error('whatsapp_number inválido em settings');

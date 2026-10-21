@@ -14,7 +14,7 @@ describe('POST /api/orders — caminho feliz', () => {
     assert.equal(res.status, 201);
     assert.equal(res.body.code, 'BR-0001');
     assert.equal(res.body.subtotalCents, 5949); // 3499 (mais caro) + 450 + 2 × 1000
-    assert.equal(res.body.whatsappUrl, `https://wa.me/5585997687641?text=${encodeURIComponent(res.body.message)}`);
+    assert.equal(res.body.whatsappUrl, `https://wa.me/5585992732247?text=${encodeURIComponent(res.body.message)}`);
 
     assert.equal(db.state.orders.length, 1);
     const saved = db.state.orders[0];
@@ -180,7 +180,7 @@ describe('POST /api/orders — pagamento salvo e número da loja', () => {
     const { app, db } = makeApp();
     const res = await post(app, validOrder());
     assert.equal(res.status, 201);
-    assert.equal(res.body.whatsappUrl, 'https://wa.me/5585997687641?text=' + encodeURIComponent(res.body.message));
+    assert.equal(res.body.whatsappUrl, 'https://wa.me/5585992732247?text=' + encodeURIComponent(res.body.message));
     assert.deepEqual(db.state.orders[0].payment, { method: 'cash', changeForCents: 10000 });
     assert.deepEqual(db.state.orders[0].items[0].addons, [{ name: 'Borda Recheada com Catupiry', priceCents: 450 }]);
   });
@@ -194,7 +194,7 @@ describe('POST /api/orders — pagamento salvo e número da loja', () => {
 
   it('número da loja é lido a cada pedido', async () => {
     const { app, db } = makeApp();
-    assert.match((await post(app, validOrder())).body.whatsappUrl, /^https:\/\/wa\.me\/5585997687641\?text=/);
+    assert.match((await post(app, validOrder())).body.whatsappUrl, /^https:\/\/wa\.me\/5585992732247\?text=/);
     await db.updateSettings({ whatsappNumber: '5585988887777' });
     const res = await post(app, validOrder());
     assert.ok(res.body.whatsappUrl.startsWith('https://wa.me/5585988887777?text='));

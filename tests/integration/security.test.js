@@ -109,6 +109,6 @@ test('varredura: public/ sem SERVICE_ROLE nem número do WhatsApp', () => {
     if (/\.(png|jpe?g|webp|ico|woff2?)$/i.test(f)) continue;
     const src = fs.readFileSync(f, 'utf8');
     assert.ok(!src.includes('SERVICE_ROLE'), `${rel(f)}: SERVICE_ROLE`);
-    assert.ok(!src.includes('5585997687641'), `${rel(f)}: número do WhatsApp`);
+    assert.ok(!src.includes('5585992732247'), `${rel(f)}: número do WhatsApp`);
   }
 });

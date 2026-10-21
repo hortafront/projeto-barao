@@ -79,7 +79,7 @@ export function createFakeDb(overrides = {}) {
     products: (overrides.products ?? seedProducts())
       .map((p) => ({ createdAt: now().toISOString(), updatedAt: now().toISOString(), ...p })),
     hours: overrides.hours ?? seedHours(),
-    settings: { storeOverride: 'auto', whatsappNumber: '5585997687641', updatedAt: now().toISOString(), ...overrides.settings },
+    settings: { storeOverride: 'auto', whatsappNumber: '5585992732247', updatedAt: now().toISOString(), ...overrides.settings },
     orders: [],      // Order[] — inspecione em testes: db.state.orders
     orderSeq: 0,     // espelha a sequence order_code_seq
     productSeq: 0,
