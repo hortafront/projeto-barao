@@ -34,9 +34,10 @@ function assertOneAddonPerGroup(addons, path) {
 
 function unavailableMessage(entries) {
   const names = entries.map((e) => e.name).filter((n) => n != null);
-  return names.length > 0
-    ? `Ops! ${names.join(', ')} acabou por hoje. Remova do carrinho para continuar.`
-    : 'Ops! Alguns itens acabaram por hoje. Remova do carrinho para continuar.';
+  if (names.length === 0) return 'Ops! Alguns itens acabaram por hoje. Remova do carrinho para continuar.';
+  if (names.length === 1) return `Ops! ${names[0]} acabou por hoje. Remova do carrinho para continuar.`;
+  const list = `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`;
+  return `Ops! ${list} acabaram por hoje. Remova do carrinho para continuar.`;
 }
 
 export function priceOrderItems(items, productsById) {
