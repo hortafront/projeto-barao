@@ -72,7 +72,7 @@ create table public.settings (
   id               smallint primary key default 1 check (id = 1),
   store_override   text not null default 'auto'
                    check (store_override in ('auto','open','closed')),
-  whatsapp_number  text not null default '5585997687641'
+  whatsapp_number  text not null default '5585992732247'
                    check (whatsapp_number ~ '^55[0-9]{10,11}$'),  -- 55 + DDD + 8/9 dígitos (= Zod)
   updated_at       timestamptz not null default now()
 );

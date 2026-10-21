@@ -13,7 +13,7 @@
 | **Nome** | Barão – Delivery de Pizza |
 | **Slogan** | "Peça agora e saboreie!" |
 | **Cidade** | Fortaleza/CE (fuso `America/Fortaleza`, UTC-3, sem horário de verão) |
-| **Canal de pedidos** | WhatsApp (85) 99768-7641 |
+| **Canal de pedidos** | WhatsApp (85) 99273-2247 (provisório) |
 | **Estilo** | Pizzaria tradicional, visual rústico, forno a lenha, mascote chef de bigode em uma lambreta vermelha |
 | **Operação** | Delivery e retirada no balcão; pizza em tamanho único |
 
@@ -236,5 +236,5 @@ Exemplos: "Bateu a fome? Monte sua pizza.", "Ops, essa acabou por hoje.", "Estam
 1. **Fotos dos produtos:** ainda não existem — o dono enviará depois (ideal: quadradas, boa luz, ≥ 800 px). Até lá, o site funciona sem fotos com placeholder na identidade visual (ilustração de pizza/garrafa); quando chegarem, o upload é feito pelo painel.
 2. **Domínio:** usará domínio próprio (ex.: `pizzariabarao.com.br`) ou subdomínio da hospedagem? Quem registra?
 3. **Logo e mascote em arquivo** (vetor ou PNG em alta resolução) para uso no site.
-4. **Número do WhatsApp (PENDENTE):** o dono enviará o número definitivo; altera pelo painel em **Loja** (campo "Número do WhatsApp", digitado como (85) 99999-9999). Até lá vale `5585997687641` — (85) 99768-7641 — como valor atual/seed. O número vem de `settings.whatsapp_number` (nunca fixo no código).
+4. **Número do WhatsApp (PENDENTE):** o dono enviará o número definitivo; altera pelo painel em **Loja** (campo "Número do WhatsApp", digitado como (85) 99999-9999). Até lá vale o número provisório `5585992732247` — (85) 99273-2247 — como valor atual/seed. O número vem de `settings.whatsapp_number` (nunca fixo no código).
 5. **Bairros atendidos:** há bairros onde não entregam? (O MVP não bloqueia por bairro; serviria para um aviso no checkout.)

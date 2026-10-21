@@ -24,6 +24,6 @@ test('toWhatsAppDigits normaliza para 55 + DDD + número', () => {
 });
 
 test('maskPhoneBR formata dígitos com 55', () => {
-  assert.equal(maskPhoneBR('5585997687641'), '(85) 99768-7641');
+  assert.equal(maskPhoneBR('5585992732247'), '(85) 99273-2247');
   assert.equal(maskPhoneBR('8599'), '(85) 99');
 });
