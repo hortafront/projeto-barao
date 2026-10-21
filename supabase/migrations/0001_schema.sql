@@ -145,6 +145,7 @@ create index orders_status_created_at_idx on public.orders (status, created_at d
 create table public.order_items (
   id                uuid primary key default gen_random_uuid(),
   order_id          uuid not null references public.orders(id) on delete cascade,
+  position          smallint not null check (position >= 0), -- ordem do item no pedido (0 = primeiro)
   kind              text not null check (kind in ('pizza','drink')),
   description       text not null,                    -- "Pizza meio a meio: Calabresa / Frango"
   product_ids       uuid[] not null,                  -- ids dos sabores (ou da bebida) + addons do item
@@ -156,6 +157,7 @@ create table public.order_items (
   notes             text check (notes is null or char_length(notes) <= 140),
   line_total_cents  integer not null,                 -- unit_price_cents × quantity
 
+  constraint order_items_order_position_key unique (order_id, position),
   constraint order_items_line_total_check check (line_total_cents = unit_price_cents * quantity),
   constraint order_items_unit_gte_base check (unit_price_cents >= base_unit_cents),
   constraint order_items_product_ids_not_empty check (cardinality(product_ids) >= 1),
@@ -193,6 +195,7 @@ declare
   v_code       text;
   v_created_at timestamptz;
   v_item       jsonb;
+  v_pos        int;
   v_sum        int := 0;
   v_addons     jsonb;
   v_addons_sum int;
@@ -218,7 +221,7 @@ begin
   )
   returning id, created_at into v_order_id, v_created_at;
 
-  for v_item in select value from jsonb_array_elements(payload -> 'items') loop
+  for v_item, v_pos in select value, ordinality - 1 from jsonb_array_elements(payload -> 'items') with ordinality loop
     v_addons := coalesce(v_item -> 'addons', '[]'::jsonb);
     select coalesce(sum((a ->> 'priceCents')::int), 0) into v_addons_sum
       from jsonb_array_elements(v_addons) as a;
@@ -227,10 +230,10 @@ begin
     end if;
 
     insert into public.order_items (
-      order_id, kind, description, product_ids, flavor_names, addons,
+      order_id, position, kind, description, product_ids, flavor_names, addons,
       base_unit_cents, unit_price_cents, quantity, notes, line_total_cents
     ) values (
-      v_order_id, v_item ->> 'kind', v_item ->> 'description',
+      v_order_id, v_pos, v_item ->> 'kind', v_item ->> 'description',
       array(select jsonb_array_elements_text(v_item -> 'product_ids'))::uuid[],
       case when jsonb_typeof(v_item -> 'flavor_names') = 'array'
            then array(select jsonb_array_elements_text(v_item -> 'flavor_names')) end,
