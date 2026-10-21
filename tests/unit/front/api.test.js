@@ -12,6 +12,23 @@ const jsonResponse = (status, body) => new Response(JSON.stringify(body), {
   status, headers: { 'Content-Type': 'application/json' },
 });
 
+test('request com token envia Authorization Bearer; sem token não envia', async () => {
+  const seen = [];
+  globalThis.fetch = async (path, init) => { seen.push(init); return jsonResponse(200, {}); };
+  await request('/api/me', { token: 't1' });
+  await request('/api/me');
+  assert.equal(seen[0].headers.Authorization, 'Bearer t1');
+  assert.equal(seen[1].headers?.Authorization, undefined);
+});
+
+test('createOrder com token envia o header Authorization', async () => {
+  let init;
+  globalThis.fetch = async (path, i) => { init = i; return jsonResponse(201, { code: 'BR-0001' }); };
+  await createOrder({ items: [] }, { token: 't' });
+  assert.equal(init.headers.Authorization, 'Bearer t');
+  assert.equal(init.headers['Content-Type'], 'application/json');
+});
+
 test('201 com JSON devolve ok: true com status e data', async () => {
   globalThis.fetch = async () => jsonResponse(201, { code: 'BR-0001' });
   assert.deepEqual(await request('/api/orders'), { ok: true, status: 201, data: { code: 'BR-0001' } });
