@@ -73,7 +73,7 @@ test('estáticos: /js e /css com no-cache (evita módulos misturados após deplo
     const res = await request(app).get('/' + rel(img));
     assert.match(res.headers['cache-control'], /max-age=3600/);
   }
-  for (const url of ['/', '/admin/index.html', '/admin/painel.html']) {
+  for (const url of ['/', '/admin/index.html', '/admin/painel.html', '/conta/nova-senha.html']) {
     const res = await request(app).get(url);
     assert.equal(res.status, 200, url);
     assert.equal(res.headers['cache-control'], 'no-cache', url);
@@ -82,7 +82,7 @@ test('estáticos: /js e /css com no-cache (evita módulos misturados após deplo
 
 test('varredura: HTML sem <script> inline, style="" nem on*=', () => {
   const htmls = byExt('.html');
-  assert.ok(htmls.length >= 3);
+  assert.ok(htmls.length >= 4);
   for (const f of htmls) {
     const src = fs.readFileSync(f, 'utf8');
     for (const m of src.matchAll(/<script\b([^>]*)>/gi)) {

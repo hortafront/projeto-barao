@@ -1,0 +1,11 @@
+.new-password {
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4);
+  display: grid;
+  gap: var(--space-4);
+}
+.new-password__title { margin: 0; }
+.new-password__form { display: grid; gap: var(--space-3); }
+.new-password input { min-height: 44px; }
+.new-password .btn { min-height: 44px; text-align: center; text-decoration: none; }
