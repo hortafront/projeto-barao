@@ -4,13 +4,12 @@
 // atualize o snapshot AQUI PRIMEIRO (vermelho) e só depois o service (verde).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import request from 'supertest';
-import { makeApp, validOrder, normalizeSpaces, IDS } from '../helpers/testkit.js';
+import { makeApp, validOrder, normalizeSpaces, IDS, postOrder } from '../helpers/testkit.js';
 import { buildOrderMessage } from '../../src/services/whatsapp.service.js';
 
 async function messageFor(body) {
   const { app } = makeApp();
-  const res = await request(app).post('/api/orders').send(body);
+  const res = await postOrder(app, body);
   assert.equal(res.status, 201, JSON.stringify(res.body));
   // a URL deve carregar exatamente a mensagem, codificada com encodeURIComponent
   assert.equal(res.body.whatsappUrl, `https://wa.me/5585992732247?text=${encodeURIComponent(res.body.message)}`);
@@ -105,7 +104,7 @@ describe('mensagem do WhatsApp', () => {
 
   it('mensagem regenerada a partir do pedido salvo é idêntica à resposta', async () => {
     const { app, db } = makeApp();
-    const res = await request(app).post('/api/orders').send(validOrder());
+    const res = await postOrder(app, validOrder());
     assert.equal(res.status, 201);
     const saved = await db.getOrderById(db.state.orders[0].id); // Order (snapshot de order_items)
     assert.equal(buildOrderMessage(saved), res.body.message);
