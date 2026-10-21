@@ -5,13 +5,16 @@ const GENERIC_MESSAGE = 'Algo deu errado. Tente novamente.';
  * Chama a API. Nunca rejeita:
  *   { ok: true, status, data } | { ok: false, error: { status, code, message, details } }
  */
-export async function request(path, { method = 'GET', body, timeoutMs = 10000, cache } = {}) {
+export async function request(path, { method = 'GET', body, timeoutMs = 10000, cache, token } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(path, {
       method,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      headers: body === undefined && !token ? undefined : {
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
       ...(cache ? { cache } : {}),
@@ -39,4 +42,5 @@ export async function request(path, { method = 'GET', body, timeoutMs = 10000, c
 
 export const getMenu = ({ fresh = false } = {}) => request('/api/menu', fresh ? { cache: 'no-cache' } : {});
 export const getStatus = () => request('/api/status');
-export const createOrder = (payload) => request('/api/orders', { method: 'POST', body: payload, timeoutMs: 30000 });
+export const createOrder = (payload, { token } = {}) =>
+  request('/api/orders', { method: 'POST', body: payload, timeoutMs: 30000, token });
