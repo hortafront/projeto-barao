@@ -20,13 +20,13 @@ from (values
   ('especiais', 'pizza', 'Frango',       'Molho de tomate especial, mussarela, frango, milho, azeitona e orégano',                               3499, 1, null, '/img/products/frango.webp'),
   ('especiais', 'pizza', 'Portuguesa',   'Molho de tomate especial, mussarela, presunto, ovos, cebola, pimentão, milho, azeitona e orégano',    3499, 2, null, '/img/products/portuguesa.webp'),
   ('especiais', 'pizza', 'Bacon',        'Molho de tomate especial, mussarela, bacon, azeitona e orégano',                                       3999, 3, null, '/img/products/bacon.webp'),
-  ('especiais', 'pizza', 'Carne do Sol', 'Molho de tomate especial, mussarela, carne do sol, cebola roxa, azeitona e orégano',                    4299, 4, null, '/img/products/carne-do-sol.webp'),
+  ('especiais', 'pizza', 'Carne do Sol', 'Molho de tomate especial, mussarela, carne do sol, cebola roxa, azeitona e orégano',                    4299, 4, null, null),
   -- Bebidas
   ('bebidas', 'drink', 'Coca-Cola 600ml',               '', 600,  1, null, '/img/products/coca-cola-600.webp'),
   ('bebidas', 'drink', 'Coca-Cola 600ml Zero Açúcar',   '', 600,  2, null, '/img/products/coca-cola-600-zero.webp'),
   ('bebidas', 'drink', 'Coca-Cola 1 Litro',             '', 1000, 3, null, '/img/products/coca-cola-1l.webp'),
   ('bebidas', 'drink', 'Coca-Cola 1 Litro Zero Açúcar', '', 1000, 4, null, '/img/products/coca-cola-1l-zero.webp'),
-  ('bebidas', 'drink', 'Guaraná 1 Litro',               '', 800,  5, null, '/img/products/guarana-1l.webp'),
+  ('bebidas', 'drink', 'Guaraná 1 Litro',               '', 800,  5, null, null),
   -- Adicionais Especiais
   -- addon_group 'borda': no máximo uma borda por pizza; catupiry por cima (null) combina com qualquer borda
   ('adicionais', 'addon', 'Borda Recheada com Catupiry',          '',                                       450, 1, 'borda', null),
