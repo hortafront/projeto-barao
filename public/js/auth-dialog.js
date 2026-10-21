@@ -189,7 +189,7 @@ export function initAuthDialog({ dialog, auth, toast = () => {} }) {
 
       function forgotForm() {
         const mail = field({ id: 'auth-email', label: 'E-mail da sua conta', type: 'email', autocomplete: 'email', required: true, value: email });
-        const msg = el('p', { class: 'notice', 'aria-live': 'polite', hidden: true }, RESET_NOTICE);
+        const msg = el('p', { class: 'notice', 'aria-live': 'polite' });
         const error = el('p', { class: 'field-error', 'aria-live': 'polite' });
         const submit = el('button', { type: 'submit', class: 'btn btn--primary btn--block' }, 'Enviar link');
         return el('form', {
@@ -202,7 +202,7 @@ export function initAuthDialog({ dialog, auth, toast = () => {} }) {
             if (!EMAIL_RE.test(email)) { error.textContent = 'Informe um e-mail válido.'; mail.input.focus(); return; }
             await withBusy(submit, 'Enviando…', 'Enviar link', async () => {
               try { await auth.requestPasswordReset(email); } catch { /* não revela se o e-mail existe */ }
-              msg.hidden = false; // mesma resposta com ou sem conta
+              msg.textContent = RESET_NOTICE; // mesma resposta com ou sem conta (anunciada pela região aria-live)
             });
           },
         },

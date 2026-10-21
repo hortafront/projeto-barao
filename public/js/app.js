@@ -35,22 +35,9 @@ function toast(text) {
 }
 
 // ---------- conta do cliente ----------
+// supabase-js só é baixado quando há sessão salva ou o visitante tenta entrar.
 const authDialog = initAuthDialog({ dialog: $('#auth-modal'), auth, toast });
-const gate = createLoginGate({
-  getSession: auth.getSession,
-  loadMe: authDialog.loadMe,
-  openLogin: () => authDialog.openLogin(),
-  openCompleteProfile: authDialog.openCompleteProfile,
-});
-// Entregue ao checkout (T11) e à tela "Minha conta" (T12).
-export const account = {
-  gate,
-  withAuth: auth.withAuth,
-  customerApi: auth.customerApi,
-  openLogin: authDialog.openLogin,
-  openCompleteProfile: authDialog.openCompleteProfile,
-  loadMe: authDialog.loadMe,
-};
+let watching = false;
 
 function paintAccountButton(session) {
   const logged = Boolean(session);
@@ -58,12 +45,52 @@ function paintAccountButton(session) {
   accountButton.dataset.logged = String(logged);
 }
 
+/** Idempotente: assina as mudanças de sessão uma única vez. */
+function watchAuth() {
+  if (watching) return;
+  watching = true;
+  auth.onAuthChange((_event, session) => paintAccountButton(session)).catch(() => { watching = false; });
+}
+
+async function openLogin(tab) {
+  watchAuth();
+  const ok = await authDialog.openLogin(tab);
+  if (ok) paintAccountButton(await auth.getSession());
+  return ok;
+}
+
+async function loadMe() {
+  const me = await authDialog.loadMe();
+  if (!me) toast('Não foi possível carregar sua conta. Verifique sua internet e tente de novo.');
+  return me;
+}
+
+const gate = createLoginGate({
+  getSession: () => (auth.hasStoredSession() ? auth.getSession() : null),
+  loadMe,
+  openLogin: () => openLogin(),
+  openCompleteProfile: authDialog.openCompleteProfile,
+});
+// Entregue ao checkout (T11) e à tela "Minha conta" (T12).
+export const account = {
+  gate,
+  withAuth: auth.withAuth,
+  customerApi: auth.customerApi,
+  openLogin,
+  openCompleteProfile: authDialog.openCompleteProfile,
+  loadMe,
+};
+
 accountButton.addEventListener('click', () => {
   if (accountButton.dataset.logged === 'true') gate.run(() => {}); // T12 troca por abrir "Minha conta"
   else account.openLogin();
 });
-auth.getSession().then(paintAccountButton);
-auth.onAuthChange((_event, session) => paintAccountButton(session)).catch(() => {});
+if (auth.hasStoredSession()) {
+  watchAuth();
+  auth.getSession().then(paintAccountButton);
+} else {
+  paintAccountButton(null);
+}
 auth.onSessionLost(() => {
   paintAccountButton(null);
   toast('Sua sessão expirou. Entre novamente.');

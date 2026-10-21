@@ -84,3 +84,4 @@ dialog#auth-modal { max-width: 28rem; }
 .auth-form__lead { color: var(--color-text-muted); }
 .auth-form__link { justify-self: center; }
 .field-error:empty { display: none; }
+.notice:empty { display: none; }
