@@ -3,6 +3,7 @@ import { createOrdersRepo } from './orders.repo.js';
 import { createStoreRepo } from './store.repo.js';
 import { createProductsRepo } from './products.repo.js';
 import { createAuthRepo } from './auth.repo.js';
+import { createCustomersRepo } from './customers.repo.js';
 
 export function createRepository(supabase) {
   return {
@@ -11,5 +12,6 @@ export function createRepository(supabase) {
     ...createStoreRepo(supabase),
     ...createProductsRepo(supabase),
     ...createAuthRepo(supabase),
+    ...createCustomersRepo(supabase),
   };
 }

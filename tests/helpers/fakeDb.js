@@ -70,6 +70,7 @@ export function seedHours() {
  * @param {Array}  [overrides.hours]      substitui os 7 dias
  * @param {object} [overrides.settings]   ex.: { storeOverride: 'closed' }
  * @param {Object<string,{id,email}>} [overrides.users] token -> usuário (getUserByAccessToken)
+ * @param {Object<string,{name,phone}>} [overrides.customers] userId -> perfil de cliente (seed de state.customers)
  * @param {() => Date} [overrides.now] relógio para createdAt/updatedAt (o MESMO passado ao createApp)
  */
 export function createFakeDb(overrides = {}) {
@@ -84,6 +85,9 @@ export function createFakeDb(overrides = {}) {
     orderSeq: 0,     // espelha a sequence order_code_seq
     productSeq: 0,
     users: overrides.users ?? {},
+    customers: Object.fromEntries(Object.entries(overrides.customers ?? {}).map(([id, c]) => [id, clone(c)])), // userId -> { name, phone }
+    addresses: [],   // { userId, _seq, id, label, street, number, district, reference, isDefault, createdAt, updatedAt }
+    addressSeq: 0,
   };
 
   const findProduct = (id) => state.products.find((p) => p.id === id);
@@ -104,6 +108,18 @@ export function createFakeDb(overrides = {}) {
     Object.assign(p, next);
     return clone(p);
   };
+
+  // ---- clientes (helpers). _seq desempata createdAt iguais (relógio fixo): maior = inserido depois.
+  const toAddress = ({ userId, _seq, ...a }) => clone(a);
+  const mineAddresses = (userId) => state.addresses.filter((a) => a.userId === userId);
+  const makeDefault = (userId, id) => {
+    for (const a of mineAddresses(userId)) a.isDefault = a.id === id;
+  };
+  const sortedAddresses = (userId) => mineAddresses(userId)
+    .sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || b._seq - a._seq);
+  const addressFields = (d) => ({
+    label: d.label || null, street: d.street, number: d.number, district: d.district, reference: d.reference || null,
+  });
 
   return {
     state,
@@ -148,6 +164,7 @@ export function createFakeDb(overrides = {}) {
       const sum = draft.items.reduce((s, i) => s + i.lineTotalCents, 0);
       if (sum !== draft.subtotalCents) throw new Error('fakeDb: subtotal_cents ≠ soma das linhas');
       if (draft.fulfillment === 'delivery' && !draft.address) throw new Error('fakeDb: entrega sem endereço');
+      if (draft.customerId && !state.customers[draft.customerId]) throw new Error('fakeDb: customer_id sem perfil (FK)');
 
       state.orderSeq += 1;
       const order = {
@@ -155,6 +172,7 @@ export function createFakeDb(overrides = {}) {
         code: `BR-${String(state.orderSeq).padStart(4, '0')}`,
         status: 'received',
         createdAt: now().toISOString(),
+        customerId: draft.customerId ?? null,
         customer: clone(draft.customer),
         fulfillment: draft.fulfillment,
         address: draft.fulfillment === 'delivery'
@@ -238,5 +256,55 @@ export function createFakeDb(overrides = {}) {
 
     // ---- auth (real: supabase.auth.getUser(token)); null = token inválido/expirado
     async getUserByAccessToken(token) { return clone(state.users[token] ?? null); },
+
+    // ---- clientes
+    async getCustomer(userId) { return clone(state.customers[userId] ?? null); },
+    async upsertCustomer(userId, { name, phone }) {
+      state.customers[userId] = { name, phone };
+      return clone(state.customers[userId]);
+    },
+    async listAddresses(userId) { return sortedAddresses(userId).map(toAddress); },
+    /** isDefault true desmarca os outros; false/ausente não vira padrão (a regra do 1º endereço é do service). */
+    async createAddress(userId, data) {
+      if (!state.customers[userId]) throw new Error('fakeDb: customer_addresses.user_id sem perfil (FK)');
+      state.addressSeq += 1;
+      const stamp = now().toISOString();
+      const a = { userId, _seq: state.addressSeq, id: uuid(700000 + state.addressSeq), ...addressFields(data),
+        isDefault: false, createdAt: stamp, updatedAt: stamp };
+      state.addresses.push(a);
+      if (data.isDefault === true) makeDefault(userId, a.id);
+      return toAddress(a);
+    },
+    async updateAddress(userId, id, data) {
+      const a = mineAddresses(userId).find((x) => x.id === id);
+      if (!a) return null;
+      Object.assign(a, addressFields(data), { updatedAt: now().toISOString() });
+      if (data.isDefault === true) makeDefault(userId, id);
+      return toAddress(a);
+    },
+    /** true = removido. Se era o padrão, o mais recente restante vira padrão. */
+    async deleteAddress(userId, id) {
+      const a = mineAddresses(userId).find((x) => x.id === id);
+      if (!a) return false;
+      state.addresses = state.addresses.filter((x) => x !== a);
+      if (a.isDefault) {
+        const next = mineAddresses(userId).sort((x, y) => y._seq - x._seq)[0];
+        if (next) next.isDefault = true;
+      }
+      return true;
+    },
+    async setDefaultAddress(userId, id) {
+      const a = mineAddresses(userId).find((x) => x.id === id);
+      if (!a) return null;
+      makeDefault(userId, id);
+      return toAddress(a);
+    },
+    /** Apaga perfil, endereços e usuários (Auth) com esse id; pedidos ficam com customerId null (on delete set null). */
+    async deleteCustomerAccount(userId) {
+      delete state.customers[userId];
+      state.addresses = state.addresses.filter((a) => a.userId !== userId);
+      for (const [token, u] of Object.entries(state.users)) if (u.id === userId) delete state.users[token];
+      for (const o of state.orders) if (o.customerId === userId) o.customerId = null;
+    },
   };
 }
