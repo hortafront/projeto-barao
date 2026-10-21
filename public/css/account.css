@@ -1,0 +1,87 @@
+/* =========================================================================
+   Conta do cliente: botão do header, abas Entrar / Criar conta, formulários.
+   Só var(--*) de tokens.css.
+   ========================================================================= */
+
+/* ---------- Header: marca à esquerda, grupo de ações à direita ---------- */
+.site-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* telas estreitas (360px): a marca encolhe com reticências em vez de estourar o header */
+.site-header { gap: var(--space-2); }
+.site-header__brand {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-lg);
+}
+.site-header__actions { flex-shrink: 0; }
+
+.header-account {
+  min-height: var(--tap-min);
+  padding: 0 var(--space-2);
+  border: var(--border-frame);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-title);
+  font-family: var(--font-display);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.header-account:hover { background: var(--color-accent); color: var(--color-accent-contrast); }
+.header-account:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.header-account[data-logged="true"] { background: var(--color-surface); color: var(--color-text-strong); }
+.header-account[data-logged="true"]:hover { background: var(--color-surface-hover); color: var(--color-text-strong); }
+
+@media (min-width: 480px) {
+  .site-header { gap: var(--space-3); }
+  .site-header__brand { font-size: var(--fs-xl); }
+  .site-header__actions { gap: var(--space-3); }
+  .header-account { padding: 0 var(--space-4); font-size: var(--fs-md); }
+}
+
+/* ---------- Janela de login ---------- */
+dialog#auth-modal { max-width: 28rem; }
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: var(--border-hair);
+}
+.auth-tabs__tab {
+  min-height: var(--tap-min);
+  margin-bottom: -1px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.auth-tabs__tab:hover { color: var(--color-text-strong); }
+.auth-tabs__tab[aria-selected="true"] {
+  color: var(--color-title);
+  border-bottom-color: var(--color-accent);
+}
+.auth-tabs__tab:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+
+.auth-form { display: grid; gap: var(--space-4); padding-top: var(--space-4); }
+.auth-form__lead { color: var(--color-text-muted); }
+.auth-form__link { justify-self: center; }
+.field-error:empty { display: none; }
+.notice:empty { display: none; }

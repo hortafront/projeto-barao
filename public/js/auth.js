@@ -74,6 +74,15 @@ async function authCall(fn) {
   return result.data;
 }
 
+/** Há sessão salva neste navegador? Barato: não toca no supabase-js (nem baixa o CDN). */
+export function hasStoredSession(storage) {
+  try {
+    return Boolean((storage ?? globalThis.localStorage)?.getItem(CUSTOMER_STORAGE_KEY));
+  } catch {
+    return false;
+  }
+}
+
 export async function getSession() {
   try {
     const { data } = await (await getSupabase()).auth.getSession();
