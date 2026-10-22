@@ -45,6 +45,12 @@ O que a 0001 cria: tabelas do contrato + checks (endereço obrigatório se `deli
 | `deleteProduct(id)` | `true` (removido) / `false` (não existe); **lança** `AppError('PRODUCT_HAS_ORDERS', 409, ...)` se existir `order_items` com `product_ids @> array[id]` |
 | `setProductAvailability(id, available)` | `Product \| null` |
 | `uploadProductImage(id, { buffer, contentType })` | `Product \| null` com `imageUrl` pública |
+| `getTodayCombo(weekday)` | `Combo \| null` (combo cujo `weekdays` contém o dia, 0 = domingo, com `slots` por `position`) |
+| `listCombos()` / `getCombo(id)` / `getCombosByIds(ids)` | `Combo[]` / `Combo \| null` / `Combo[]` |
+| `createCombo(input)` / `updateCombo(id, input)` | `Combo` / `Combo \| null` (grava combo + vagas numa transação, rpc `save_combo`; `input = { name, description, priceCents, weekdays, slots: [{ label, kind, productIds }] }`) |
+| `deleteCombo(id)` | `true` / `false`; **lança** `AppError('PRODUCT_HAS_ORDERS', 409, 'Combo já tem pedidos; marque como esgotado em vez de excluir')` se existir `order_items.combo_id = id` |
+| `setComboAvailability(id, available)` | `Combo \| null` |
+| `uploadComboImage(id, { buffer, contentType })` | `Combo \| null` com `imageUrl` pública (mesmo bucket `product-images`) |
 | `getUserByAccessToken(token)` | `{ id, email } \| null` (usado por `requireAdmin` e `requireCustomer`) |
 | `getCustomer(userId)` | `{ name, phone } \| null` (perfil do cliente) |
 | `upsertCustomer(userId, { name, phone })` | `{ name, phone }` (cria ou atualiza) |
@@ -62,6 +68,15 @@ O que a 0001 cria: tabelas do contrato + checks (endereço obrigatório se `deli
 Código de referência completo (client, mappers, todos os repos, `createRepository`): [reference/repositories.md](reference/repositories.md).
 
 Regras do fake: gera códigos `BR-0001`, `BR-0002`... com o mesmo formato; rejeita (lança) se `subtotalCents` ≠ soma de `lineTotalCents` ou `unitPriceCents` ≠ `baseUnitCents` + Σ `addons.priceCents`; `deleteProduct` lança `PRODUCT_HAS_ORDERS` se algum item salvo tem o id em `productIds`; retorna cópias (não referências internas) para os testes não se contaminarem.
+
+## Combo do dia (`0004_combos.sql`)
+- Tabelas `combos` (`name`, `description`, `price_cents` > 0, `image_url`, `weekdays smallint[]` 1–7 dias 0–6 sem repetir — função `weekdays_valid`, `available`) e `combo_slots` (`combo_id` com `on delete cascade`, `position` único por combo, `label` 2–40, `kind` `pizza|drink`, `product_ids uuid[]` ≥ 1). RLS ligado, sem policies; `revoke all` de `anon`/`authenticated`. "Um combo por dia" e 1–4 vagas são regras do service, não do banco.
+- `order_items`: `kind` aceita `'combo'`; colunas `combo_id` (`references combos on delete restrict`) e `combo_choices jsonb`; `order_items_kind_shape` recriada (combo exige ambos; outros kinds, ambos nulos). `create_order` redefinida para gravá-los (mesma assinatura).
+- rpc `save_combo(p_id uuid, payload jsonb)` (só `service_role`): cria ou atualiza o combo e substitui as vagas atomicamente; retorna o id (null se `p_id` não existe). Não toca `available` nem `image_url`.
+- Depois de aplicar no SQL Editor: `notify pgrst, 'reload schema';`.
+- Snapshot do combo: `description` = nome do combo; `product_ids` = produtos escolhidos + adicionais; `flavor_names` null; `addons` = adicionais achatados; `base_unit_cents` = preço do combo; `combo_choices` = `[{ "label", "kind", "description", "addons": [{ "name", "priceCents" }] }]` na ordem das vagas. `Order.items[]` ganha `comboId` e `choices` (null fora de combo).
+- Produto excluído que ainda está numa vaga: ao servir o combo, ids inexistentes são filtrados; vaga sem nenhum produto disponível → combo com `available: false` no cardápio.
+- `Combo = { id, name, description, priceCents, imageUrl, weekdays, available, slots: [{ id, position, label, kind, productIds }], createdAt, updatedAt }`.
 
 ## Código do pedido
 - `BR-` + número da sequence com 4 dígitos (`BR-0001`); acima de 9999 vira `BR-10000` (`lpad` truncaria — por isso o `case`).
