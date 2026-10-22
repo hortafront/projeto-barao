@@ -3,7 +3,8 @@ import { createOrder } from './api.js';
 import { $, el, openDialog, render } from './dom.js';
 import { lineId } from './cart.js';
 import {
-  FieldError, NEW_ADDRESS, addressLabel, addressToSave, applyAddressChoice, buildOrderPayload, createOrderSubmitter,
+  FieldError, MAX_SAVED_ADDRESSES, NEW_ADDRESS, addressLabel, addressToSave, applyAddressChoice, buildOrderPayload,
+  canSaveAnotherAddress, createOrderSubmitter,
   defaultAddressChoice, fieldErrorsFromDetails, maskPhone, prefillFromMe,
 } from './order-payload.js';
 import { formatBRL } from '/shared/money.js';
@@ -211,6 +212,7 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
     fieldRefs.clear();
     const total = subtotal();
     const formError = el('p', { class: 'notice notice--error', role: 'alert', hidden: true });
+    const saved = me?.addresses ?? [];
     const pixNote = el('p', { class: 'notice', hidden: true }, PIX_NOTICE);
     const deliveryNote = el('p', { class: 'notice', hidden: true }, DELIVERY_NOTICE);
     const addressBox = el('div', { class: 'address-box', hidden: true },
@@ -219,10 +221,11 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
         field('number', 'Número', el('input', { id: 'f-number', name: 'number', type: 'text', maxlength: 10, autocomplete: 'off' })),
         field('district', 'Bairro', el('input', { id: 'f-district', name: 'district', type: 'text', maxlength: 60, autocomplete: 'address-level3' }))),
       field('reference', 'Referência (opcional)', el('input', { id: 'f-reference', name: 'reference', type: 'text', maxlength: 120, autocomplete: 'off' })),
-      el('label', { class: 'check' },
-        el('input', { type: 'checkbox', name: 'saveAddress' }),
-        el('span', {}, 'Salvar este endereço')));
-    const saved = me?.addresses ?? [];
+      canSaveAnotherAddress(saved)
+        ? el('label', { class: 'check' },
+          el('input', { type: 'checkbox', name: 'saveAddress' }),
+          el('span', {}, 'Salvar este endereço'))
+        : el('p', { class: 'notice' }, `Você já tem ${MAX_SAVED_ADDRESSES} endereços salvos. Apague um na sua conta para salvar outro.`));
     const addressChoice = saved.length > 0
       ? radioGroup('addressChoice', 'Endereço de entrega',
         [...saved.map((a) => [a.id, addressLabel(a)]), [NEW_ADDRESS, 'Usar outro endereço']], defaultAddressChoice(saved))

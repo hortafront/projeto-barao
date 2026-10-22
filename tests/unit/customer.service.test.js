@@ -93,7 +93,14 @@ test('remover o único endereço e adicionar outro -> o novo é padrão', async 
 test('deleteAccount apaga perfil e endereços', async () => {
   const db = mk();
   await addAddress(db, U, addr('Rua A'));
-  assert.equal(await deleteAccount(db, U), undefined);
+  assert.equal(await deleteAccount(db, { id: U, email: 'joao@cliente.com' }, ['dono@barao.com']), undefined);
   assert.equal(await db.getCustomer(U), null);
   assert.deepEqual(await db.listAddresses(U), []);
+});
+
+test('deleteAccount recusa e-mail de admin (sem diferenciar caixa/espaços) e não apaga nada', async () => {
+  const db = mk();
+  await rejectsApp(deleteAccount(db, { id: U, email: 'Dono@Barao.com' }, [' dono@barao.com ']),
+    'FORBIDDEN', 403, 'A conta do administrador não pode ser excluída por aqui.');
+  assert.deepEqual(await db.getCustomer(U), profile);
 });

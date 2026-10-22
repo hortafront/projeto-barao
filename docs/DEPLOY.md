@@ -37,6 +37,11 @@ O mesmo Supabase Auth atende o painel do dono e as contas de cliente. O **cadast
    - **Redirect URLs**: `https://<domínio>/conta/nova-senha.html`
 5. Somente e-mails listados em `ADMIN_EMAILS` entram no painel, mesmo que existam outros usuários no Auth.
 
+> **Atenção (segurança):** o painel confere só o e-mail. Como o cadastro é aberto e sem confirmação de e-mail, quem se cadastrar com um e-mail de `ADMIN_EMAILS` que ainda não existe no Auth vira administrador.
+> - Crie **cada** usuário admin no Supabase Auth **antes** de colocar o e-mail em `ADMIN_EMAILS`.
+> - Nunca liste um e-mail que não esteja já cadastrado.
+> - Nunca apague um usuário admin do Auth enquanto o e-mail dele estiver em `ADMIN_EMAILS` (para trocar de admin, tire o e-mail da lista primeiro). A API já recusa `DELETE /api/me` para e-mails de admin, mas apagar pelo painel do Supabase continua possível.
+
 ## 4. Pegar as chaves
 
 Em **Project Settings → API**:
@@ -109,7 +114,10 @@ Nada abaixo foi executado automaticamente (exige Supabase real, navegador, celul
   ```bash
   curl -s localhost:3000/api/menu | head -c 300
   curl -s localhost:3000/api/status
-  curl -s -X POST localhost:3000/api/orders -H 'Content-Type: application/json' -d @tmp/pedido.json   # ids reais do /api/menu; 201 ou 409 STORE_CLOSED conforme a hora
+  curl -s -X POST localhost:3000/api/orders -H 'Content-Type: application/json' -d @tmp/pedido.json   # sem token: 401 UNAUTHORIZED
+  # com token de CLIENTE (conta criada no site, perfil completo) e ids reais do /api/menu: 201 ou 409 STORE_CLOSED conforme a hora
+  curl -s -X POST localhost:3000/api/orders -H "Authorization: Bearer $CUSTOMER_TOKEN" -H 'Content-Type: application/json' -d @tmp/pedido.json
+  # o token do admin não tem perfil de cliente: o mesmo pedido devolve 400
   curl -s localhost:3000/api/admin/settings                                                          # 401
   TOKEN=$(curl -s "$SUPABASE_URL/auth/v1/token?grant_type=password" -H "apikey: $SUPABASE_ANON_KEY" -H 'Content-Type: application/json' -d '{"email":"guslolhorta@gmail.com","password":"..."}' | node -e "process.stdin.on('data',d=>console.log(JSON.parse(d).access_token))")
   curl -s localhost:3000/api/admin/orders -H "Authorization: Bearer $TOKEN"

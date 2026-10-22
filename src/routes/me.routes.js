@@ -8,7 +8,7 @@ import {
 } from '../services/customer.service.js';
 
 /** Montado em /api/me (já atrás do requireCustomer: req.customer = { id, email }). */
-export function meRoutes({ db }) {
+export function meRoutes({ db, options = {} }) {
   const router = express.Router();
 
   router.get('/', asyncHandler(async (req, res) => {
@@ -37,7 +37,7 @@ export function meRoutes({ db }) {
   }));
 
   router.delete('/', asyncHandler(async (req, res) => {
-    await deleteAccount(db, req.customer.id);
+    await deleteAccount(db, req.customer, options.adminEmails);
     res.status(204).end();
   }));
 

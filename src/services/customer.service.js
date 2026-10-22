@@ -42,6 +42,13 @@ export async function makeDefaultAddress(db, userId, id) {
   return address;
 }
 
-export async function deleteAccount(db, userId) {
-  await db.deleteCustomerAccount(userId);
+/**
+ * Recusa apagar o usuário do Auth se o e-mail é de administrador (mesma normalização do requireAdmin):
+ * com cadastro aberto, qualquer um poderia recriar o e-mail e entrar no painel.
+ */
+export async function deleteAccount(db, { id, email }, adminEmails = []) {
+  const normalized = (email ?? '').trim().toLowerCase();
+  const isAdmin = adminEmails.some((e) => e.trim().toLowerCase() === normalized && normalized !== '');
+  if (isAdmin) throw new AppError('FORBIDDEN', 403, 'A conta do administrador não pode ser excluída por aqui.');
+  await db.deleteCustomerAccount(id);
 }

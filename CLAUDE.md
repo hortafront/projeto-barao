@@ -147,7 +147,7 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 ## Segurança
 - `SUPABASE_SERVICE_ROLE_KEY` **só no servidor**; nunca em `public/`, nunca em log, nunca em resposta.
 - `helmet` com CSP: só `self` + Google Fonts + `https://cdn.jsdelivr.net` (script do supabase-js no admin e no login do cliente) +
-  origem de `SUPABASE_URL` em `connect-src`/`img-src` (login do admin e imagens do bucket).
+  origem de `SUPABASE_URL` em `connect-src`/`img-src` (login do admin e do cliente, e imagens do bucket).
 - CORS restrito a `CORS_ORIGIN`. `express.json({ limit: '20kb' })`.
 - Rate limit: `POST /api/orders` 10 req / 10 min por IP (resposta 429 `RATE_LIMITED`); também nas rotas admin e em `/api/me` (300 req / 15 min).
   Atrás de proxy, `TRUST_PROXY=1` (`options.trustProxy`).

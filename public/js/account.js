@@ -65,7 +65,6 @@ export function initAccount({ dialog, account, auth, toast = () => {} }) {
       const closeBox = openDialog(box, {
         onClose: () => {
           box.remove();
-          if (dialog.open) document.body.classList.add('is-locked');
           resolve(result);
         },
       });

@@ -2,7 +2,7 @@ import { dbError } from './mappers.js';
 
 export function createAuthRepo(supabase) {
   return {
-    /** Valida o access_token do admin. null = token inválido/expirado. */
+    /** Valida o access_token (admin ou cliente). null = token inválido/expirado. */
     async getUserByAccessToken(token) {
       const { data, error } = await supabase.auth.getUser(token);
       if (error) {
