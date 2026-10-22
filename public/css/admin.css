@@ -225,3 +225,15 @@ input[type="checkbox"], input[type="radio"] { width: 24px; height: 24px; accent-
 .order-detail .btn { min-height: var(--admin-tap); }
 .order-items { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
 .order-items li { padding: var(--space-3); border: var(--border-hair); border-radius: var(--radius-md); }
+
+/* ---------- Combos ---------- */
+.admin-list__row--combo { flex-wrap: wrap; }
+.admin-list__row--combo .admin-list__main { flex-basis: 8rem; }
+.weekdays { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: var(--space-2); }
+.weekday { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-height: var(--tap-min); }
+.weekday label { min-width: var(--tap-min); }
+.combo-slots { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
+.combo-products { border: var(--border-hair); border-radius: var(--radius-md); padding: var(--space-3); margin: var(--space-2) 0; }
+.combo-products legend { padding: 0 var(--space-2); color: var(--color-text-muted); }
+.combo-products .form-row { margin-bottom: 0; min-height: var(--tap-min); }
+.combo-slot .btn, .combo-slots + .btn { min-height: var(--tap-min); }
