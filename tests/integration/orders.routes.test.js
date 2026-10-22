@@ -2,7 +2,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
-import { makeApp, validOrder, IDS, CUSTOMER_A, CUSTOMER_NEW, postOrder } from '../helpers/testkit.js';
+import { makeApp, validOrder, IDS, CUSTOMER_A, CUSTOMER_NEW, postOrder, seedCombo } from '../helpers/testkit.js';
 
 const post = (app, body) => postOrder(app, body);
 
@@ -321,5 +321,51 @@ describe('POST /api/orders — exige cliente logado', () => {
     const res = await postOrder(app, validOrder(), { customer: CUSTOMER_NEW });
     assert.equal(res.status, 409);
     assert.equal(res.body.error.code, 'STORE_CLOSED');
+  });
+});
+
+describe('POST /api/orders — combo do dia', () => {
+  const THURSDAY_22H = '2026-10-23T01:00:00Z'; // quinta 22:00 local, loja aberta
+  const FRIDAY_00H = '2026-10-23T03:00:00Z';   // sexta 00:00 local (override aberta)
+  const comboBody = (combo) => validOrder({
+    items: [{
+      kind: 'combo', comboId: combo.id, quantity: 2, unitPriceCents: 1, priceCents: 1,
+      slots: [
+        { kind: 'pizza', flavorIds: [IDS.calabresa, IDS.mussarela], addonIds: [IDS.bordaCatupiry] },
+        { kind: 'drink', productId: IDS.coca1l },
+      ],
+    }],
+  });
+
+  it('201: recalcula do banco (ignora preço do cliente) e guarda comboId/choices', async () => {
+    const { app, db } = makeApp({ now: THURSDAY_22H });
+    const combo = await seedCombo(db);
+    const res = await post(app, comboBody(combo));
+    assert.equal(res.status, 201);
+    assert.equal(res.body.subtotalCents, (3690 + 450) * 2);
+    const [saved] = db.state.orders[0].items;
+    assert.equal(saved.comboId, combo.id);
+    assert.equal(saved.choices[0].description, 'Pizza meio a meio: Calabresa / Mussarela');
+    assert.equal(saved.unitPriceCents, 4140);
+    assert.equal(saved.lineTotalCents, 8280);
+  });
+
+  it('fora do dia → 409 PRODUCT_UNAVAILABLE', async () => {
+    const { app, db } = makeApp({ now: FRIDAY_00H, settings: { storeOverride: 'open' } });
+    const combo = await seedCombo(db);
+    const res = await post(app, comboBody(combo));
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error.code, 'PRODUCT_UNAVAILABLE');
+    assert.equal(res.body.error.message, 'O Combo Clássico não está disponível hoje.');
+    assert.equal(db.state.orders.length, 0);
+  });
+
+  it('combo esgotado → 409', async () => {
+    const { app, db } = makeApp({ now: THURSDAY_22H });
+    const combo = await seedCombo(db);
+    await db.setComboAvailability(combo.id, false);
+    const res = await post(app, comboBody(combo));
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error.code, 'PRODUCT_UNAVAILABLE');
   });
 });

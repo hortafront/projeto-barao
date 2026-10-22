@@ -1,7 +1,7 @@
 import { AppError } from '../errors/AppError.js';
 import { calcOrderSubtotalCents } from '../../shared/pricing.js';
-import { getStoreStatus, describeNextOpening } from './hours.service.js';
-import { collectProductIds, priceOrderItems, assertChangeIsValid } from './pricing.service.js';
+import { getStoreStatus, describeNextOpening, getLocalParts } from './hours.service.js';
+import { collectProductIds, collectComboIds, priceOrderItems, assertChangeIsValid } from './pricing.service.js';
 import { buildOrderMessage, buildWhatsAppUrl } from './whatsapp.service.js';
 
 export async function createOrder(input, { db, now = new Date(), timeZone = 'America/Fortaleza', customerId }) {
@@ -22,8 +22,15 @@ export async function createOrder(input, { db, now = new Date(), timeZone = 'Ame
     throw new AppError('VALIDATION_ERROR', 400, msg, [{ path: 'profile', message: msg }]);
   }
 
-  const products = await db.getProductsByIds(collectProductIds(input.items));
-  const pricedItems = priceOrderItems(input.items, new Map(products.map((p) => [p.id, p])));
+  const comboIds = collectComboIds(input.items);
+  const [products, combos] = await Promise.all([
+    db.getProductsByIds(collectProductIds(input.items)),
+    comboIds.length > 0 ? db.getCombosByIds(comboIds) : [],
+  ]);
+  const pricedItems = priceOrderItems(input.items, new Map(products.map((p) => [p.id, p])), {
+    combosById: new Map(combos.map((c) => [c.id, c])),
+    weekday: getLocalParts(now, timeZone).weekday,
+  });
   const subtotalCents = calcOrderSubtotalCents(pricedItems);
 
   const isCash = input.payment.method === 'cash';
