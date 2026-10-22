@@ -60,29 +60,29 @@ export function selectionCents(selection, productsById) {
 
 // ---------- DOM ----------
 
-function choice({ type, name, value, checked = false, label, priceCents, plus = false, id }) {
+export function choice({ type, name, value, checked = false, label, priceCents, plus = false, id, disabled = false }) {
   return el('label', { class: 'choice' },
-    el('input', { type, name, value, checked, id }),
+    el('input', { type, name, value, checked, id, disabled }),
     el('span', { class: 'choice__label' }, label),
     priceCents != null && el('span', { class: 'price choice__price' }, `${plus ? '+' : ''}${formatBRL(priceCents)}`));
 }
 
-function addonSections(addons) {
+export function addonSections(addons, ns = '') {
   const { groups, free } = splitAddons(addons);
   const sections = [];
   for (const [group, items] of groups) {
     const title = GROUP_LABELS[group] ?? group;
     sections.push(el('fieldset', { class: 'pizza-modal__section' },
       el('legend', {}, title),
-      choice({ type: 'radio', name: `${GROUP_PREFIX}${group}`, value: '', checked: true, label: `Sem ${title.toLowerCase()}` }),
+      choice({ type: 'radio', name: `${ns}${GROUP_PREFIX}${group}`, value: '', checked: true, label: `Sem ${title.toLowerCase()}` }),
       items.map((a) => choice({
-        type: 'radio', name: `${GROUP_PREFIX}${group}`, value: a.id, label: a.name, priceCents: a.priceCents, plus: true,
+        type: 'radio', name: `${ns}${GROUP_PREFIX}${group}`, value: a.id, label: a.name, priceCents: a.priceCents, plus: true,
       }))));
   }
   if (free.length > 0) {
     sections.push(el('fieldset', { class: 'pizza-modal__section' },
       el('legend', {}, 'Adicionais'),
-      free.map((a) => choice({ type: 'checkbox', name: 'addon', value: a.id, label: a.name, priceCents: a.priceCents, plus: true }))));
+      free.map((a) => choice({ type: 'checkbox', name: `${ns}addon`, value: a.id, label: a.name, priceCents: a.priceCents, plus: true }))));
   }
   return sections;
 }

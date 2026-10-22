@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createOrderSchema, ordersQuerySchema } from '../../src/schemas/order.schema.js';
 import { productCreateSchema, productUpdateSchema } from '../../src/schemas/product.schema.js';
 import { hoursSchema, settingsSchema } from '../../src/schemas/hours.schema.js';
+import { comboInputSchema } from '../../src/schemas/combo.schema.js';
 
 const U1 = '11111111-1111-4111-8111-111111111111';
 const U2 = '22222222-2222-4222-8222-222222222222';
@@ -184,4 +185,91 @@ test('mensagens: quantidade, adicionais, enums e uuid em PT-BR', () => {
   assert.deepEqual(msgs(createOrderSchema, order({ payment: {} }), ['payment', 'method']), ['Escolha a forma de pagamento.']);
   assert.deepEqual(msgs(createOrderSchema, order({ items: [{ kind: 'x' }] }), ['items', 0, 'kind']), ['Item inválido.']);
   assert.deepEqual(msgs(createOrderSchema, order({ payment: { method: 'cash', changeForCents: -1 } }), ['payment', 'changeForCents']), ['Valor do troco inválido.']);
+});
+
+// ---- combo do dia ----
+const U = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+const comboBody = (over = {}) => ({
+  name: 'Combo Família', priceCents: 6990, weekdays: [1, 4],
+  slots: [{ label: 'Pizza 1', kind: 'pizza', productIds: [U(1), U(2)] }, { label: 'Refri', kind: 'drink', productIds: [U(3)] }],
+  ...over,
+});
+const firstMsg = (r) => r.error.issues[0].message;
+
+test('comboInputSchema: combo válido passa e descrição vira ""', () => {
+  const r = comboInputSchema.safeParse(comboBody());
+  assert.equal(r.success, true);
+  assert.equal(r.data.description, '');
+});
+test('comboInputSchema: 5 vagas falha com mensagem PT-BR', () => {
+  const slot = { label: 'Vaga', kind: 'drink', productIds: [U(3)] };
+  const r = comboInputSchema.safeParse(comboBody({ slots: [slot, slot, slot, slot, slot] }));
+  assert.equal(r.success, false);
+  assert.equal(firstMsg(r), 'No máximo 4 vagas.');
+});
+test('comboInputSchema: weekdays inválidos falham em PT-BR', () => {
+  for (const weekdays of [[], [7], [1, 1]]) {
+    const r = comboInputSchema.safeParse(comboBody({ weekdays }));
+    assert.equal(r.success, false);
+    assert.match(firstMsg(r), /dia/i);
+    assert.doesNotMatch(firstMsg(r), /Expected|Invalid|Array must/);
+  }
+});
+test('comboInputSchema: preço deve ser inteiro > 0', () => {
+  for (const priceCents of [0, -1, 10.5]) assert.equal(comboInputSchema.safeParse(comboBody({ priceCents })).success, false);
+});
+test('comboInputSchema: vaga sem produtos ou com ids repetidos falha', () => {
+  assert.equal(comboInputSchema.safeParse(comboBody({ slots: [{ label: 'Pizza 1', kind: 'pizza', productIds: [] }] })).success, false);
+  assert.equal(comboInputSchema.safeParse(comboBody({ slots: [{ label: 'Pizza 1', kind: 'pizza', productIds: [U(1), U(1)] }] })).success, false);
+});
+
+test('comboInputSchema: vaga não-objeto e corpo nulo dão mensagem PT-BR', () => {
+  const r = comboInputSchema.safeParse(comboBody({ slots: [null] }));
+  assert.equal(r.success, false);
+  assert.equal(firstMsg(r), 'Vaga inválida.');
+  assert.deepEqual(r.error.issues[0].path, ['slots', 0]);
+  const s = comboInputSchema.safeParse(comboBody({ slots: ['a'] }));
+  assert.equal(firstMsg(s), 'Vaga inválida.');
+  const n = comboInputSchema.safeParse(null);
+  assert.equal(n.success, false);
+  assert.equal(firstMsg(n), 'Dados inválidos.');
+});
+test('comboInputSchema: description null vira "" e 8 dias dão um só erro', () => {
+  const r = comboInputSchema.safeParse(comboBody({ description: null }));
+  assert.equal(r.success, true);
+  assert.equal(r.data.description, '');
+  const e = comboInputSchema.safeParse(comboBody({ weekdays: [0, 1, 2, 3, 4, 5, 6, 0] }));
+  assert.equal(e.success, false);
+  assert.equal(e.error.issues.length, 1);
+});
+
+const comboItem = (over = {}) => ({
+  kind: 'combo', comboId: U(9), quantity: 2,
+  slots: [{ kind: 'pizza', flavorIds: [U(1), U(2)], addonIds: [U(5)] }, { kind: 'drink', productId: U(3) }],
+  ...over,
+});
+const orderWith = (item) => ({
+  fulfillment: 'pickup', customer: { name: 'Ana Souza', phone: '85999998888' },
+  payment: { method: 'pix' }, items: [item],
+});
+test('createOrderSchema: item combo válido passa', () => {
+  const r = createOrderSchema.safeParse(orderWith(comboItem()));
+  assert.equal(r.success, true);
+  assert.equal(r.data.items[0].notes, null);
+});
+test('createOrderSchema: slot pizza com 3 sabores falha', () => {
+  const r = createOrderSchema.safeParse(orderWith(comboItem({ slots: [{ kind: 'pizza', flavorIds: [U(1), U(2), U(3)] }] })));
+  assert.equal(r.success, false);
+  assert.equal(firstMsg(r), 'No máximo 2 sabores (meio a meio).');
+});
+test('createOrderSchema: slot sem kind falha em PT-BR', () => {
+  const r = createOrderSchema.safeParse(orderWith(comboItem({ slots: [{ productId: U(3) }] })));
+  assert.equal(r.success, false);
+  assert.equal(firstMsg(r), 'Item inválido.');
+});
+test('createOrderSchema: combo com 0 ou 5 vagas falha; bebida continua valendo', () => {
+  assert.equal(createOrderSchema.safeParse(orderWith(comboItem({ slots: [] }))).success, false);
+  const d = { kind: 'drink', productId: U(3) };
+  assert.equal(createOrderSchema.safeParse(orderWith(comboItem({ slots: [d, d, d, d, d] }))).success, false);
+  assert.equal(createOrderSchema.safeParse(orderWith({ kind: 'drink', productId: U(3), quantity: 1 })).success, true);
 });

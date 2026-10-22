@@ -33,16 +33,27 @@ export function calcPizzaUnitCents(flavors, addons = []) {
   }, base);
 }
 
+/** Unitário do combo = preço do combo + soma dos adicionais. combo: { priceCents }, addons: [{ priceCents }] */
+export function calcComboUnitCents(combo, addons = []) {
+  assertCents(combo?.priceCents, 'combo');
+  return addons.reduce((sum, a) => {
+    assertCents(a?.priceCents, 'adicional');
+    return sum + a.priceCents;
+  }, combo.priceCents);
+}
+
 /**
  * Total da linha.
  * pizza: { kind: 'pizza', flavors: [{priceCents}], addons: [{priceCents}], quantity }
  * drink: { kind: 'drink', product: { priceCents }, quantity }
+ * combo: { kind: 'combo', combo: { priceCents }, addons: [{priceCents}], quantity }
  */
 export function calcItemCents(item) {
   assertQuantity(item?.quantity);
   let unit;
   if (item.kind === 'pizza') unit = calcPizzaUnitCents(item.flavors, item.addons ?? []);
   else if (item.kind === 'drink') { assertCents(item.product?.priceCents, 'bebida'); unit = item.product.priceCents; }
+  else if (item.kind === 'combo') unit = calcComboUnitCents(item.combo, item.addons ?? []);
   else throw new TypeError(`kind de item inválido: ${item.kind}`);
   return unit * item.quantity;
 }

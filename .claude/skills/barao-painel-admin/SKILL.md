@@ -25,6 +25,13 @@ Rotas e formatos da API: skill `barao-api-express` (autoridade). Validação de 
 9. Datas/horas exibidas e filtros calculados em `America/Fortaleza`.
 10. Páginas com `<meta name="robots" content="noindex">`; nenhum `<script>` inline (CSP).
 
+## Aba Combos (`public/admin/js/combos.js`)
+Rotas (`requireAdmin`): `GET /api/admin/combos` → `{ combos }`; `POST` → 201 `{ combo }`; `PUT /:id` → `{ combo }` (substitui as vagas); `DELETE /:id` → 204; `PATCH /:id/availability` `{ available }`; `POST /:id/image` (multipart `image`, jpeg/png/webp, 2 MB). Corpo: `{ name, description?, priceCents, weekdays, slots: [{ label, kind, productIds }] }`.
+- Faixa no topo: "Hoje aparece: {combo}" ou "Nenhum combo hoje" (dia em `America/Fortaleza`). Lista: foto, nome, preço, dias ("Ter · Qui"), Esgotado, Editar, Excluir.
+- Formulário: nome, descrição (≤ 200), preço em reais (`parseBRLToCents`), 7 caixas Dom–Sáb (dia de outro combo desabilitado com o nome dele), 1–4 vagas (rótulo 2–40, tipo pizza/bebida, produtos permitidos com atalhos "Marcar todas as Clássicas/Especiais/Bebidas", subir/descer/remover), foto (2 passos: POST/PUT e depois `/image` com o `id`).
+- Erros: dia já usado → 400 "Já existe um combo na {dia}: {nome}." (`details` em `weekdays`); produto de tipo errado na vaga → 400; excluir combo com pedido → 409 `PRODUCT_HAS_ORDERS`: o painel só mostra a mensagem do servidor num toast (não há botão "Marcar como esgotado"); o dono usa o interruptor Esgotado.
+- Pedidos mostram o item combo como na mensagem do WhatsApp; o Resumo conta o combo pelo nome.
+
 ## Configuração do cliente Supabase
 URL e ANON key são buscadas de `GET /api/admin-config` → `{ supabaseUrl, supabaseAnonKey }` (rota pública, fora do
 `requireAdmin`, lê `SUPABASE_URL`/`SUPABASE_ANON_KEY` do env). A CSP precisa liberar `script-src https://cdn.jsdelivr.net`
@@ -160,7 +167,7 @@ async function saveWhatsApp(input, btn) {
 - Criar produto e enviar foto são 2 chamadas: só faça o upload com o `id` retornado pelo POST.
 - `addonGroup` ("Grupo: Borda | nenhum") só existe para `kind = 'addon'`; envie sempre `kind` junto e `addonGroup: null` para pizza/bebida (grupo em não-addon → 400 `VALIDATION_ERROR`, `path: 'addonGroup'`).
 - Liberar `URL.createObjectURL` com `revokeObjectURL` ao trocar/fechar.
-- Excluir produto que já aparece em pedido → 409 `PRODUCT_HAS_ORDERS` (checado por id em `order_items.product_ids`): oferecer "Marcar como esgotado".
+- Excluir produto que já aparece em pedido → 409 `PRODUCT_HAS_ORDERS` (checado por id em `order_items.product_ids`): o painel só mostra a mensagem do servidor num toast (não há botão "Marcar como esgotado"); o dono usa o interruptor Esgotado.
 - Formatos de leitura: `GET /api/admin/products` → `{ products }`; `GET /api/admin/orders` → `{ orders, page, pageSize, total }`; `GET /api/admin/orders/:id` → `{ order }` (com `items`). Desembrulhar (`const { products } = await adminApi(...)`).
 - Não fazer polling agressivo de pedidos (bateria/dados do dono): botão "Atualizar" + atualização ao voltar para a aba (`visibilitychange`).
 - Override `open`/`closed` esquecido trava vendas: exibir faixa permanente enquanto não for `auto`.

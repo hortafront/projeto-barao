@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import '../../helpers/browserAliases.js';
 
-const { todayInFortaleza, presetRange, formatTimeFortaleza, STATUS_LABEL, mergeOrderPages } =
+const { todayInFortaleza, presetRange, formatTimeFortaleza, STATUS_LABEL, mergeOrderPages, itemDetailLines } =
   await import('../../../public/admin/js/orders.js');
 
 const SUNDAY_20H = new Date('2026-10-18T23:00:00Z'); // domingo 20:00 em Fortaleza
@@ -50,4 +50,24 @@ test('mergeOrderPages: duplicado dentro da própria página também é ignorado'
   const { list, added } = mergeOrderPages([], [{ id: 'a' }, { id: 'a' }]);
   assert.equal(list.length, 1);
   assert.equal(added, 1);
+});
+
+test('itemDetailLines: pizza comum mantém sabores e adicionais', () => {
+  const lines = itemDetailLines({
+    kind: 'pizza', quantity: 1, description: 'Pizza', flavorNames: ['A', 'B'],
+    addons: [{ name: 'Catupiry por cima', priceCents: 800 }], notes: 'sem cebola',
+  });
+  assert.deepEqual(lines.map((l) => l.text), ['Sabores: A / B', '+ Catupiry por cima (R$ 8,00)', 'Obs.: sem cebola']);
+});
+
+test('itemDetailLines: combo mostra escolhas e adicionais sob a escolha', () => {
+  const lines = itemDetailLines({
+    kind: 'combo', quantity: 2, description: 'Combo Clássico', flavorNames: null, addons: [{ name: 'Borda', priceCents: 500 }],
+    choices: [
+      { label: 'Pizza', kind: 'pizza', description: 'Calabresa / Mussarela', addons: [{ name: 'Borda', priceCents: 500 }] },
+      { label: 'Bebida', kind: 'drink', description: 'Guaraná 2L', addons: [] },
+    ],
+  });
+  assert.deepEqual(lines.map((l) => l.text), ['• Calabresa / Mussarela', '+ Borda (R$ 5,00)', '• Guaraná 2L']);
+  assert.deepEqual(lines.map((l) => l.sub), [false, true, false]);
 });

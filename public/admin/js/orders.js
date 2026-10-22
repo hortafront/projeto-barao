@@ -44,6 +44,26 @@ export function formatTimeFortaleza(iso) {
   return timeFmt.format(new Date(iso));
 }
 
+/**
+ * Linhas sob o título do item: [{ text, sub }]. Combo segue a mensagem do WhatsApp
+ * (`• escolha` e `+ adicional` sob a escolha); `sub` = recuado.
+ */
+export function itemDetailLines(item) {
+  const addonLine = (a) => ({ text: `+ ${a.name} (${formatBRL(a.priceCents)})`, sub: true });
+  const lines = [];
+  if (item.kind === 'combo' && Array.isArray(item.choices)) {
+    for (const choice of item.choices) {
+      lines.push({ text: `• ${choice.description}`, sub: false });
+      for (const a of choice.addons ?? []) lines.push(addonLine(a));
+    }
+  } else {
+    if (item.flavorNames?.length) lines.push({ text: `Sabores: ${item.flavorNames.join(' / ')}`, sub: false });
+    for (const a of item.addons ?? []) lines.push({ ...addonLine(a), sub: false });
+  }
+  if (item.notes) lines.push({ text: `Obs.: ${item.notes}`, sub: false });
+  return lines;
+}
+
 /** Anexa a página seguinte sem repetir pedidos já listados (a paginação é por deslocamento). */
 export function mergeOrderPages(current, incoming) {
   const seen = new Set(current.map((o) => o.id));
@@ -253,9 +273,8 @@ export async function mount(container, ctx) {
         el('ul', { class: 'order-items' }, (order.items ?? []).map((item) =>
           el('li', {},
             el('div', {}, `${item.quantity}× ${item.description}`),
-            item.flavorNames?.length ? el('div', { class: 'admin-list__meta' }, `Sabores: ${item.flavorNames.join(' / ')}`) : null,
-            ...(item.addons ?? []).map((a) => el('div', { class: 'admin-list__meta' }, `+ ${a.name} (${formatBRL(a.priceCents)})`)),
-            item.notes ? el('div', { class: 'admin-list__meta' }, `Obs.: ${item.notes}`) : null,
+            ...itemDetailLines(item).map((line) =>
+              el('div', { class: `admin-list__meta${line.sub ? ' order-items__sub' : ''}` }, line.text)),
             el('div', {}, formatBRL(item.lineTotalCents))))),
         el('p', {}, `Pagamento: ${PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod}`),
         order.changeForCents != null ? el('p', {}, `Troco para ${formatBRL(order.changeForCents)}`) : null,

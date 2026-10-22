@@ -1,5 +1,5 @@
 import { AppError } from '../errors/AppError.js';
-import { calcPizzaBaseCents, calcPizzaUnitCents, calcItemCents } from '../../shared/pricing.js';
+import { calcPizzaBaseCents, calcPizzaUnitCents, calcComboUnitCents, calcItemCents } from '../../shared/pricing.js';
 
 export function collectProductIds(items) {
   const ids = new Set();
@@ -7,11 +7,24 @@ export function collectProductIds(items) {
     if (item.kind === 'pizza') {
       item.flavorIds.forEach((id) => ids.add(id));
       (item.addonIds ?? []).forEach((id) => ids.add(id));
+    } else if (item.kind === 'combo') {
+      for (const slot of item.slots) {
+        if (slot.kind === 'pizza') {
+          slot.flavorIds.forEach((id) => ids.add(id));
+          (slot.addonIds ?? []).forEach((id) => ids.add(id));
+        } else {
+          ids.add(slot.productId);
+        }
+      }
     } else {
       ids.add(item.productId);
     }
   }
   return [...ids];
+}
+
+export function collectComboIds(items) {
+  return [...new Set(items.filter((i) => i.kind === 'combo').map((i) => i.comboId))];
 }
 
 function invalid(message, path = 'items') {
@@ -40,7 +53,7 @@ function unavailableMessage(entries) {
   return `Ops! ${list} acabaram por hoje. Remova do carrinho para continuar.`;
 }
 
-export function priceOrderItems(items, productsById) {
+export function priceOrderItems(items, productsById, { combosById = new Map(), weekday } = {}) {
   const unavailable = new Map(); // id -> { productId, name }
 
   const resolve = (id, expectedKind, path) => {
@@ -53,7 +66,39 @@ export function priceOrderItems(items, productsById) {
     return p;
   };
 
+  const resolveCombo = (item, i) => {
+    const combo = combosById.get(item.comboId);
+    if (!combo) throw new AppError('PRODUCT_UNAVAILABLE', 409, 'Este combo não está mais disponível.');
+    if (!combo.available || !combo.weekdays.includes(weekday)) {
+      throw new AppError('PRODUCT_UNAVAILABLE', 409, `O ${combo.name} não está disponível hoje.`);
+    }
+    const vagas = combo.slots;
+    if (item.slots.length !== vagas.length || vagas.some((v, j) => v.kind !== item.slots[j].kind)) {
+      throw invalid('As escolhas não correspondem às vagas do combo.', `items.${i}.slots`);
+    }
+    const slots = item.slots.map((slot, j) => {
+      const vaga = vagas[j];
+      const base = `items.${i}.slots.${j}`;
+      if (slot.kind === 'drink') {
+        if (!vaga.productIds.includes(slot.productId)) throw invalid('Produto não permitido nesta vaga do combo.', `${base}.productId`);
+        return { vaga, flavors: null, addons: [], product: resolve(slot.productId, 'drink', `${base}.productId`) };
+      }
+      const addonIds = slot.addonIds ?? [];
+      if (new Set(slot.flavorIds).size !== slot.flavorIds.length) throw invalid('Escolha dois sabores diferentes para o meio a meio.', `${base}.flavorIds`);
+      if (slot.flavorIds.some((id) => !vaga.productIds.includes(id))) throw invalid('Sabor não permitido nesta vaga do combo.', `${base}.flavorIds`);
+      if (new Set(addonIds).size !== addonIds.length) throw invalid('Cada adicional só pode ser escolhido uma vez por pizza.', `${base}.addonIds`);
+      return {
+        vaga,
+        flavors: slot.flavorIds.map((id) => resolve(id, 'pizza', `${base}.flavorIds`)),
+        addons: addonIds.map((id) => resolve(id, 'addon', `${base}.addonIds`)),
+        product: null,
+      };
+    });
+    return { item, combo, slots };
+  };
+
   const resolved = items.map((item, i) => {
+    if (item.kind === 'combo') return resolveCombo(item, i);
     if (item.kind === 'pizza') {
       const addonIds = item.addonIds ?? [];
       if (new Set(item.flavorIds).size !== item.flavorIds.length) throw invalid('Escolha dois sabores diferentes para o meio a meio.', `items.${i}.flavorIds`);
@@ -72,11 +117,32 @@ export function priceOrderItems(items, productsById) {
     throw new AppError('PRODUCT_UNAVAILABLE', 409, unavailableMessage(entries), entries);
   }
 
-  resolved.forEach(({ item, addons }, i) => {
+  resolved.forEach(({ item, addons, slots }, i) => {
     if (item.kind === 'pizza') assertOneAddonPerGroup(addons, `items.${i}.addonIds`);
+    if (item.kind === 'combo') slots.forEach((s, j) => { if (s.flavors) assertOneAddonPerGroup(s.addons, `items.${i}.slots.${j}.addonIds`); });
   });
 
-  return resolved.map(({ item, flavors, addons, product }) => {
+  return resolved.map(({ item, flavors, addons, product, combo, slots }) => {
+    if (item.kind === 'combo') {
+      const allAddons = slots.flatMap((s) => s.addons);
+      const choices = slots.map((s) => {
+        const names = s.flavors?.map((f) => f.name);
+        return {
+          label: s.vaga.label, kind: s.vaga.kind,
+          description: s.product ? s.product.name : names.length === 2 ? `Pizza meio a meio: ${names[0]} / ${names[1]}` : `Pizza ${names[0]}`,
+          addons: s.addons.map((a) => ({ name: a.name, priceCents: a.priceCents })),
+        };
+      });
+      const priced = {
+        kind: 'combo', comboId: combo.id, quantity: item.quantity, combo, description: combo.name, choices,
+        addons: allAddons.map((a) => ({ name: a.name, priceCents: a.priceCents })),
+        productIds: slots.flatMap((s) => [...(s.flavors ?? [s.product]), ...s.addons].map((p) => p.id)),
+        flavorNames: null, baseUnitCents: combo.priceCents,
+        unitPriceCents: calcComboUnitCents(combo, allAddons),
+        notes: item.notes?.trim() || null,
+      };
+      return { ...priced, lineTotalCents: calcItemCents(priced) };
+    }
     if (item.kind === 'pizza') {
       const flavorNames = flavors.map((f) => f.name);
       const priced = {

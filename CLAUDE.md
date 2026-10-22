@@ -40,34 +40,36 @@ node --test --test-name-pattern="meio a meio" # filtra por nome de teste
 | `TRUST_PROXY` | opcional; `1` atrás de proxy (Render/Railway/Nginx) para o rate limit ver o IP real |
 
 ### Migrations (Supabase)
-- Arquivos em `supabase/migrations/`: `0001_schema.sql` (tabelas, RLS, sequence, bucket), `0002_seed_cardapio.sql`, `0003_clientes.sql` (`customers`, `customer_addresses`, `orders.customer_id`).
+- Arquivos em `supabase/migrations/`: `0001_schema.sql` (tabelas, RLS, sequence, bucket), `0002_seed_cardapio.sql`, `0003_clientes.sql` (`customers`, `customer_addresses`, `orders.customer_id`), `0004_combos.sql` (combo do dia: `combos`, `combo_slots`, `order_items.combo_id`/`combo_choices`, `create_order` e rpc `save_combo`; depois de aplicar, `notify pgrst, 'reload schema';`).
 - Aplicar: colar no **SQL Editor** do painel Supabase, na ordem; ou `supabase link` + `supabase db push` (CLI).
-- Nunca editar migration já aplicada em produção: criar `0004_...sql` novo.
+- Nunca editar migration já aplicada em produção: criar `0005_...sql` novo.
 
 ## Estrutura
 ```
 public/index.html            cardápio + carrinho + checkout (cliente)
 public/css/tokens.css        design tokens (cores, fontes, espaçamentos) — única fonte de valores visuais
 public/css/                  base.css, menu.css, cart.css, admin.css
+public/css/combo.css         seção "Promoção do dia", janela do combo e combo no carrinho
 public/js/dom.js             helper de criação de DOM seguro (textContent/createElement)
 public/js/api.js             fetch para /api/* + tratamento do formato de erro
 public/js/cart.js            carrinho em localStorage `barao:cart:v1` (só ids e quantidades)
+public/js/combo-modal.js      janela "Montar combo" (uma etapa por vaga; preço ao vivo via `shared/pricing.js`)
 public/js/                   app.js, menu.js, product-modal.js, checkout.js, order-payload.js; conta do cliente: auth.js (sessão), customer-api.js,
                              login-gate.js, auth-dialog.js, account.js (Minha conta), nova-senha.js
 public/img/                  imagens estáticas (logo, mascote)
-public/admin/                index.html (login), painel.html, js/
+public/admin/                index.html (login), painel.html, js/ (inclui combos.js: aba "Combos")
 public/conta/nova-senha.html recuperação de senha do cliente
 shared/money.js              formatBRL(cents), parseBRLToCents — puro, servido em /shared
-shared/pricing.js            calcPizzaUnitCents, calcItemCents, calcOrderSubtotalCents — puro, servido em /shared
+shared/pricing.js            calcPizzaUnitCents, calcComboUnitCents, calcItemCents, calcOrderSubtotalCents — puro, servido em /shared
 src/server.js                importa createApp, cria o db real e chama listen
 src/app.js                   createApp({ db, options }) — monta middlewares, rotas, static; sem listen
-src/routes/                  menu, status, orders, me (*.routes.js) + admin/*.routes.js
-src/services/                pricing, order, hours, whatsapp, customer (*.service.js) — regra de negócio
-src/schemas/                 order, product, hours, customer (*.schema.js) — Zod
+src/routes/                  menu, status, orders, me (*.routes.js) + admin/*.routes.js (inclui combos)
+src/services/                pricing, order, hours, whatsapp, customer, combo (*.service.js) — regra de negócio
+src/schemas/                 order, product, hours, customer, combo (*.schema.js) — Zod
 src/db/supabase.js           client Supabase (service role)
 src/db/repositories/         *.repo.js — ÚNICO lugar que fala com o Supabase
 src/middleware/              requireAdmin, requireCustomer, validate, errorHandler, rateLimit
-supabase/migrations/         SQL versionado (0001 schema, 0002 seed, 0003 clientes)
+supabase/migrations/         SQL versionado (0001 schema, 0002 seed, 0003 clientes, 0004 combos)
 tests/unit/                  services e shared/ puros
 tests/integration/           rotas via supertest + createApp({ db: fakeRepo, options })
 .claude/skills/              skills do projeto (ver tabela abaixo)
@@ -124,6 +126,7 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 13. Mensagem do WhatsApp segue **exatamente** o formato do spec (gerada só em `whatsapp.service.js`, `encodeURIComponent`).
     Número vem de `settings.whatsapp_number`.
 14. **Login obrigatório para finalizar o pedido**: `POST /api/orders` usa `requireCustomer` (sem token → 401 "Entre na sua conta para continuar."; sem perfil → 400 "Complete seu perfil antes de fazer o pedido.") e grava `orders.customer_id`. O cardápio e o carrinho continuam livres, sem login. O snapshot do pedido (nome, telefone, endereço) não muda se o perfil mudar. Ver o spec da conta do cliente.
+15. **Combo do dia** (spec `docs/superpowers/specs/2026-10-22-combo-do-dia-design.md`): item com preço próprio e 1–4 vagas (`pizza` ou `drink`), cada vaga com os produtos permitidos. **Preço do item = `combo.price_cents` + adicionais**; o sabor escolhido **não** altera o preço (`calcComboUnitCents`); `line_total_cents` = unit × quantity. A pizza da vaga segue as regras da pizza (1 sabor ou 2 distintos, todos permitidos na vaga; adicional 1x, 1 por `addon_group`). **No máximo um combo por dia da semana** (regra do service: 400 `VALIDATION_ERROR` "Já existe um combo na {dia}: {nome}."). "Hoje" = dia da semana em `America/Fortaleza` (`getLocalParts`, `now` injetável); `GET /api/menu` devolve `{ categories, combo }` com o combo de hoje ou `null`. Combo inexistente → 409 `PRODUCT_UNAVAILABLE` "Este combo não está mais disponível."; esgotado ou fora do dia → 409 "O {nome} não está disponível hoje."; `slots` que não batem com as vagas, produto fora da vaga ou sabor repetido → 400 `VALIDATION_ERROR`. Snapshot em `order_items`: `combo_id` e `combo_choices` (`[{ label, kind, description, addons: [{ name, priceCents }] }]`), `description` = nome do combo, `base_unit_cents` = preço do combo. Combo com pedido não se exclui: 409 `PRODUCT_HAS_ORDERS` "Combo já tem pedidos; marque como esgotado em vez de excluir". Na mensagem do WhatsApp: `Nx {combo} — R$ (base × quantity)`, cada escolha em `   • {description}` e os adicionais da pizza logo abaixo dela (`   + <nome> — R$ (priceCents × quantity)`).
 
 ## Convenções de código
 - ESM em tudo (`import`/`export`, extensões `.js` explícitas nos imports).
@@ -192,5 +195,6 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 ## Pendências conhecidas
 - **Fotos** dos produtos: ainda não existem; o dono enviará depois (upload pelo admin). Até lá `image_url = null` → placeholder SVG inline na identidade (nunca imagem quebrada).
 - **Número do WhatsApp definitivo**: por enquanto os pedidos chegam no número provisório (85) 99273-2247; o dono enviará o definitivo; altera pelo painel em **Loja** (`PUT /api/admin/settings { whatsappNumber }`, só dígitos `^55\d{10,11}$`). Valor atual/seed (provisório) `5585992732247` em `settings.whatsapp_number`.
+- **Combo do dia**: aplicar `0004_combos.sql` no deploy (e `notify pgrst, 'reload schema';`); o dono cadastra o combo e a foto no painel, aba **Combos**.
 - **Domínio** e hospedagem (define `CORS_ORIGIN` e CSP).
 - **Usuário admin no Supabase Auth**: criar `guslolhorta@gmail.com` (Auth → Users) no deploy.

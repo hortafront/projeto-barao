@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-const uuid = z.string({ message: 'Item inválido.' }).uuid('Item inválido.');
+export const uuid = z.string({ message: 'Item inválido.' }).uuid('Item inválido.');
 const QTY_MSG = 'Quantidade deve ser entre 1 e 20.';
 const quantity = z.number({ message: QTY_MSG }).int(QTY_MSG).min(1, QTY_MSG).max(20, QTY_MSG);
-const distinct = (arr) => new Set(arr).size === arr.length;
+export const distinct = (arr) => new Set(arr).size === arr.length;
 
 // Texto livre: troca surrogates soltos por U+FFFD antes de validar, depois aplica trim e limites.
 // Limites contam code points (como char_length do Postgres), não unidades UTF-16.
@@ -30,15 +30,36 @@ export const addressSchema = z.object({
   reference: optionalText(120, 'A referência deve ter no máximo 120 caracteres.'),
 });
 
-const pizzaItemSchema = z.object({
-  kind: z.literal('pizza'),
+const pizzaChoice = {
   flavorIds: z.array(uuid)
     .min(1, 'Escolha pelo menos 1 sabor.')
     .max(2, 'No máximo 2 sabores (meio a meio).')
     .refine(distinct, 'Escolha dois sabores diferentes.'),
   addonIds: z.array(uuid).max(10, 'No máximo 10 adicionais por pizza.').default([]).refine(distinct, 'Cada adicional só pode ser escolhido uma vez.'),
+};
+const itemNotes = optionalText(140, 'A observação do item deve ter no máximo 140 caracteres.');
+
+const pizzaItemSchema = z.object({
+  kind: z.literal('pizza'),
+  ...pizzaChoice,
   quantity,
-  notes: optionalText(140, 'A observação do item deve ter no máximo 140 caracteres.'),
+  notes: itemNotes,
+});
+
+// Vaga de combo: mesmas regras da pizza, sem quantity/notes (valem para o combo todo).
+const comboSlotSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('pizza'), ...pizzaChoice }),
+  z.object({ kind: z.literal('drink'), productId: uuid }),
+], { errorMap: () => ({ message: 'Item inválido.' }) });
+
+const comboItemSchema = z.object({
+  kind: z.literal('combo'),
+  comboId: uuid,
+  slots: z.array(comboSlotSchema, { message: 'Item inválido.' })
+    .min(1, 'Escolha os itens do combo.')
+    .max(4, 'No máximo 4 vagas.'),
+  quantity,
+  notes: itemNotes,
 });
 
 const drinkItemSchema = z.object({
@@ -47,7 +68,7 @@ const drinkItemSchema = z.object({
   quantity,
 });
 
-export const orderItemSchema = z.discriminatedUnion('kind', [pizzaItemSchema, drinkItemSchema], { errorMap: () => ({ message: 'Item inválido.' }) });
+export const orderItemSchema = z.discriminatedUnion('kind', [pizzaItemSchema, drinkItemSchema, comboItemSchema], { errorMap: () => ({ message: 'Item inválido.' }) });
 
 const baseOrder = {
   customer: z.object({

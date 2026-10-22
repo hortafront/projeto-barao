@@ -7,6 +7,7 @@ import { withSaving } from './admin-api.js';
 const TABS = [
   { id: 'pedidos', label: 'Pedidos', icon: '🧾', module: './orders.js' },
   { id: 'produtos', label: 'Produtos', icon: '🍕', module: './products.js' },
+  { id: 'combos', label: 'Combos', icon: '🎁', module: './combos.js' },
   { id: 'horarios', label: 'Horários', icon: '🕒', module: './hours.js' },
   { id: 'loja', label: 'Loja', icon: '🏪', module: './store.js' },
   { id: 'resumo', label: 'Resumo', icon: '📊', module: './summary.js' },
