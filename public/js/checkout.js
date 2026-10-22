@@ -43,10 +43,7 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
   const subtotal = () => cart.subtotalCents(products());
   const unavailableIds = () => {
     const map = products();
-    return new Set(cart.getItems().filter((line) => {
-      const ids = line.kind === 'drink' ? [line.productId] : [...line.flavorIds, ...line.addonIds];
-      return ids.some((id) => map.get(id)?.available === false);
-    }).map(lineId));
+    return new Set(cart.getItems().filter((line) => cart.isLineUnavailable(line, map)).map(lineId));
   };
 
   async function fetchStatus() {
@@ -67,11 +64,11 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
   function lineView(line, unavailable) {
     const map = products();
     const id = lineId(line);
-    const addons = line.kind === 'pizza' ? line.addonIds.map((a) => map.get(a)?.name).filter(Boolean) : [];
+    const details = cart.details(line, map);
     return el('li', { class: `cart-line${unavailable.has(id) ? ' is-unavailable' : ''}` },
       el('div', { class: 'cart-line__main' },
         el('p', { class: 'cart-line__name' }, cart.describe(line, map)),
-        ...addons.map((name) => el('p', { class: 'cart-line__extra' }, `+ ${name}`)),
+        ...details.map((text) => el('p', { class: 'cart-line__extra' }, text)),
         line.notes && el('p', { class: 'cart-line__extra' }, `Obs.: ${line.notes}`),
         unavailable.has(id) && el('p', { class: 'cart-line__alert' }, 'Esgotado — remova para continuar')),
       el('div', { class: 'cart-line__controls' },
