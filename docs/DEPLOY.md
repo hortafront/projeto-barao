@@ -15,23 +15,34 @@ No painel do Supabase abra **SQL Editor** e rode, **nesta ordem** (cole o conte�
 
 1. `supabase/migrations/0001_schema.sql` (tabelas, RLS, sequence, funções `create_order`/`next_order_code`, bucket `product-images`)
 2. `supabase/migrations/0002_seed_cardapio.sql` (cardápio, horários e configurações iniciais)
+3. `supabase/migrations/0003_clientes.sql` (contas de cliente: `customers`, `customer_addresses`, `orders.customer_id` e `create_order` atualizada)
 
 Alternativa: Supabase CLI (`supabase link` + `supabase db push`).
 
-Regra: **nunca edite uma migration já aplicada em produção**. Mudanças futuras vão em `0003_*.sql`, `0004_*.sql`...
+Regra: **nunca edite uma migration já aplicada em produção**. Mudanças futuras vão em `0004_*.sql`, `0005_*.sql`...
 
-## 3. Criar o usuário admin e desligar o cadastro público
+## 3. Autenticação: admin e contas de cliente
 
-1. **Authentication → Users → Add user → Create new user**: e-mail `guslolhorta@gmail.com`, uma senha forte, marque *Auto Confirm User*.
-2. **Authentication → Sign In / Providers** (ou *Settings*): desligue **Allow new users to sign up** (signup público desabilitado).
-3. Somente e-mails listados em `ADMIN_EMAILS` entram no painel, mesmo que exista outro usuário no Auth.
+O mesmo Supabase Auth atende o painel do dono e as contas de cliente. O **cadastro público fica ligado** (o cliente precisa criar conta para finalizar o pedido); o painel continua protegido por `ADMIN_EMAILS`, então um cliente comum recebe 403 em `/admin`.
+
+1. **Authentication → Users → Add user → Create new user**: e-mail `guslolhorta@gmail.com`, uma senha forte, marque *Auto Confirm User* (usuário admin).
+2. **Authentication → Sign In / Providers → Email**:
+   - **Allow new users to sign up**: **ligado**.
+   - **Confirm email**: **desligado** (o cliente entra logo após criar a conta).
+   - **Minimum password length**: **8**.
+3. **Authentication → SMTP Settings**: configure um serviço de e-mail (Resend ou outro SMTP).
+   > **Sem SMTP, "Esqueci minha senha" não funciona em produção.** O resto (criar conta, entrar, pedir) funciona.
+4. **Authentication → URL Configuration**:
+   - **Site URL**: `https://<domínio>`
+   - **Redirect URLs**: `https://<domínio>/conta/nova-senha.html`
+5. Somente e-mails listados em `ADMIN_EMAILS` entram no painel, mesmo que existam outros usuários no Auth.
 
 ## 4. Pegar as chaves
 
 Em **Project Settings → API**:
 
 - `SUPABASE_URL`: Project URL (`https://xxxx.supabase.co`)
-- `SUPABASE_ANON_KEY`: chave `anon` / publishable (pública; usada só no login do admin)
+- `SUPABASE_ANON_KEY`: chave `anon` / publishable (pública; usada só nos logins do admin e do cliente)
 - `SUPABASE_SERVICE_ROLE_KEY`: chave `service_role` / secret (**secreta**, só no servidor; nunca em `public/`, log ou commit)
 
 ## 5. Deploy no Render (ou Railway)
@@ -92,7 +103,7 @@ Nada abaixo foi executado automaticamente (exige Supabase real, navegador, celul
 
 ### Banco / Supabase
 
-- [ ] Rodar `0001` e `0002` no projeto real sem erro (pgcrypto, RLS, grants do `service_role`, policies do bucket).
+- [ ] Rodar `0001`, `0002` e `0003` (nessa ordem) no projeto real sem erro (pgcrypto, RLS, grants do `service_role`, policies do bucket).
 - [ ] RLS efetivo: com a chave `anon` direto na API REST do Supabase, as tabelas não devolvem dados.
 - [ ] Smoke test da API (`.env` preenchido, `npm run dev`):
   ```bash
@@ -123,6 +134,18 @@ Nada abaixo foi executado automaticamente (exige Supabase real, navegador, celul
 - [ ] Toque duplo em "Enviar" gera um único pedido; tocar no fundo durante "Enviando…" mantém o diálogo e envia 1 POST; fechar à força durante o envio e reabrir mostra o mesmo formulário e o resultado, sem 2º POST.
 - [ ] Loja fechada ou produto indisponível no envio: mensagem clara.
 - [ ] Confirmação mostra o código `BR-XXXX`; "Abrir WhatsApp" abre a conversa com o número da loja e o texto completo (acentos e emoji corretos).
+
+### Conta do cliente
+
+Exige SMTP configurado (item 3 da seção 3) e e-mail real.
+
+- [ ] Criar conta (nome, telefone, e-mail, senha de 8+ caracteres): entra logado, sem confirmar e-mail; "Entrar" do header vira "Minha conta".
+- [ ] Fazer um pedido logado: nome, telefone e endereço salvo vêm pré-preenchidos; o pedido é gravado com `customer_id`; "Finalizar pedido" sem login abre a janela de login com o carrinho intacto.
+- [ ] Sair e entrar de novo (e recarregar a página: continua logado até "Sair").
+- [ ] "Esqueci minha senha" com e-mail real: o e-mail chega, o link abre `/conta/nova-senha.html`, a nova senha (mín. 8) funciona e volta ao cardápio logado.
+- [ ] "Minha conta": editar nome e telefone, adicionar/editar/apagar endereço, "Tornar padrão"; "Salvar este endereço" no checkout salva após o pedido.
+- [ ] Excluir minha conta: usuário some do Auth, perfil e endereços são apagados e os pedidos anteriores continuam no painel admin (com `customer_id` nulo).
+- [ ] Conta de cliente comum não acessa `/admin` (403).
 
 ### Painel admin
 

@@ -6,6 +6,7 @@ valida, **recalcula o preço** e salva, e o front abre o WhatsApp da loja com a 
 
 - Briefing do cliente e da identidade visual: `docs/BRIEFING.md`
 - Spec de design (inclui o **contrato técnico**: nomes, rotas, tabelas e enums): `docs/superpowers/specs/2026-10-18-cardapio-barao-design.md`
+- Spec da conta do cliente (login, perfil, endereços, `/api/me`): `docs/superpowers/specs/2026-10-21-conta-cliente-design.md`
 - Se algo aqui divergir do spec, **o spec manda**. Não invente nomes de rotas, colunas ou enums: consulte o spec.
 
 ## Stack
@@ -14,7 +15,7 @@ valida, **recalcula o preço** e salva, e o front abre o WhatsApp da loja com a 
   (sem dotenv); em produção as variáveis vêm do host.
 - Front: HTML/CSS/JS vanilla, ES modules nativos, **sem bundler, sem framework, sem framework CSS**, mobile-first.
 - Testes: `node:test` + `node:assert/strict` + `supertest`.
-- Supabase: Postgres + Auth (login admin email/senha) + Storage (bucket `product-images`, leitura pública).
+- Supabase: Postgres + Auth (login do admin e do cliente, email/senha) + Storage (bucket `product-images`, leitura pública).
 
 ## Comandos
 ```bash
@@ -32,16 +33,16 @@ node --test --test-name-pattern="meio a meio" # filtra por nome de teste
 | `PORT` | porta do Express |
 | `SUPABASE_URL` | URL do projeto Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | **só servidor**; repositórios usam esta chave |
-| `SUPABASE_ANON_KEY` | pública; entregue ao login do admin por `GET /api/admin-config` (só `signInWithPassword`) |
+| `SUPABASE_ANON_KEY` | pública; entregue ao login do admin e ao login/cadastro do cliente por `GET /api/admin-config` |
 | `ADMIN_EMAILS` | e-mails autorizados no painel, separados por vírgula. Produção: `ADMIN_EMAILS=guslolhorta@gmail.com` |
 | `CORS_ORIGIN` | origem permitida no CORS |
 | `STORE_TIMEZONE` | `America/Fortaleza` |
 | `TRUST_PROXY` | opcional; `1` atrás de proxy (Render/Railway/Nginx) para o rate limit ver o IP real |
 
 ### Migrations (Supabase)
-- Arquivos em `supabase/migrations/`: `0001_schema.sql` (tabelas, RLS, sequence, bucket), `0002_seed_cardapio.sql`.
+- Arquivos em `supabase/migrations/`: `0001_schema.sql` (tabelas, RLS, sequence, bucket), `0002_seed_cardapio.sql`, `0003_clientes.sql` (`customers`, `customer_addresses`, `orders.customer_id`).
 - Aplicar: colar no **SQL Editor** do painel Supabase, na ordem; ou `supabase link` + `supabase db push` (CLI).
-- Nunca editar migration já aplicada em produção: criar `0003_...sql` novo.
+- Nunca editar migration já aplicada em produção: criar `0004_...sql` novo.
 
 ## Estrutura
 ```
@@ -51,20 +52,22 @@ public/css/                  base.css, menu.css, cart.css, admin.css
 public/js/dom.js             helper de criação de DOM seguro (textContent/createElement)
 public/js/api.js             fetch para /api/* + tratamento do formato de erro
 public/js/cart.js            carrinho em localStorage `barao:cart:v1` (só ids e quantidades)
-public/js/                   app.js, menu.js, product-modal.js, checkout.js
+public/js/                   app.js, menu.js, product-modal.js, checkout.js, order-payload.js; conta do cliente: auth.js (sessão), customer-api.js,
+                             login-gate.js, auth-dialog.js, account.js (Minha conta), nova-senha.js
 public/img/                  imagens estáticas (logo, mascote)
 public/admin/                index.html (login), painel.html, js/
+public/conta/nova-senha.html recuperação de senha do cliente
 shared/money.js              formatBRL(cents), parseBRLToCents — puro, servido em /shared
 shared/pricing.js            calcPizzaUnitCents, calcItemCents, calcOrderSubtotalCents — puro, servido em /shared
 src/server.js                importa createApp, cria o db real e chama listen
 src/app.js                   createApp({ db, options }) — monta middlewares, rotas, static; sem listen
-src/routes/                  menu, status, orders (*.routes.js) + admin/*.routes.js
-src/services/                pricing, order, hours, whatsapp (*.service.js) — regra de negócio
-src/schemas/                 order, product, hours (*.schema.js) — Zod
+src/routes/                  menu, status, orders, me (*.routes.js) + admin/*.routes.js
+src/services/                pricing, order, hours, whatsapp, customer (*.service.js) — regra de negócio
+src/schemas/                 order, product, hours, customer (*.schema.js) — Zod
 src/db/supabase.js           client Supabase (service role)
 src/db/repositories/         *.repo.js — ÚNICO lugar que fala com o Supabase
-src/middleware/              requireAdmin, validate, errorHandler, rateLimit
-supabase/migrations/         SQL versionado
+src/middleware/              requireAdmin, requireCustomer, validate, errorHandler, rateLimit
+supabase/migrations/         SQL versionado (0001 schema, 0002 seed, 0003 clientes)
 tests/unit/                  services e shared/ puros
 tests/integration/           rotas via supertest + createApp({ db: fakeRepo, options })
 .claude/skills/              skills do projeto (ver tabela abaixo)
@@ -78,9 +81,9 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 - `createApp({ db, options })` recebe o repositório por injeção: produção passa o repo Supabase, testes passam fake em memória.
   `options = { now, rateLimit, adminEmails, corsOrigin, supabaseUrl, supabaseAnonKey, timeZone, isProduction, trustProxy }`
   (default de cada um vem do env).
-- O browser **nunca** fala direto com o Supabase. Única exceção: `signInWithPassword` no login do admin (supabase-js via
-  CDN ESM + ANON key; URL e key vêm da rota pública `GET /api/admin-config` → `{ supabaseUrl, supabaseAnonKey }`,
-  fora do `requireAdmin`, cache curto). O token vai em `Authorization: Bearer <token>` para a API; `requireAdmin` valida com
+- O browser **nunca** fala direto com o Supabase. Única exceção: a autenticação (login do admin; cadastro, login e recuperação de senha do cliente, sessão `barao-cliente-auth`),
+  feita com supabase-js via CDN ESM + ANON key; URL e key vêm da rota pública `GET /api/admin-config` → `{ supabaseUrl, supabaseAnonKey }`,
+  fora do `requireAdmin`, cache curto. O token vai em `Authorization: Bearer <token>` para a API; `requireAdmin` valida com
   `supabase.auth.getUser(token)` e checa `ADMIN_EMAILS` (401 sem token/inválido, 403 e-mail fora da lista).
 - RLS ligado em todas as tabelas, sem policies para anon: todo dado de negócio passa pela API Express.
 
@@ -120,6 +123,7 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 12. Limites do pedido: 1..30 itens, `quantity` 1..20, `notes` <= 280, nome 2–60, telefone 10–11 dígitos.
 13. Mensagem do WhatsApp segue **exatamente** o formato do spec (gerada só em `whatsapp.service.js`, `encodeURIComponent`).
     Número vem de `settings.whatsapp_number`.
+14. **Login obrigatório para finalizar o pedido**: `POST /api/orders` usa `requireCustomer` (sem token → 401 "Entre na sua conta para continuar."; sem perfil → 400 "Complete seu perfil antes de fazer o pedido.") e grava `orders.customer_id`. O cardápio e o carrinho continuam livres, sem login. O snapshot do pedido (nome, telefone, endereço) não muda se o perfil mudar. Ver o spec da conta do cliente.
 
 ## Convenções de código
 - ESM em tudo (`import`/`export`, extensões `.js` explícitas nos imports).
@@ -142,10 +146,10 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 
 ## Segurança
 - `SUPABASE_SERVICE_ROLE_KEY` **só no servidor**; nunca em `public/`, nunca em log, nunca em resposta.
-- `helmet` com CSP: só `self` + Google Fonts + `https://cdn.jsdelivr.net` (script do supabase-js no admin) +
+- `helmet` com CSP: só `self` + Google Fonts + `https://cdn.jsdelivr.net` (script do supabase-js no admin e no login do cliente) +
   origem de `SUPABASE_URL` em `connect-src`/`img-src` (login do admin e imagens do bucket).
 - CORS restrito a `CORS_ORIGIN`. `express.json({ limit: '20kb' })`.
-- Rate limit: `POST /api/orders` 10 req / 10 min por IP (resposta 429 `RATE_LIMITED`); também nas rotas admin.
+- Rate limit: `POST /api/orders` 10 req / 10 min por IP (resposta 429 `RATE_LIMITED`); também nas rotas admin e em `/api/me` (300 req / 15 min).
   Atrás de proxy, `TRUST_PROXY=1` (`options.trustProxy`).
 - Zod no servidor é a autoridade de validação (middleware `validate`); front só faz validação leve.
 - Upload de imagem: `multer` em memória, campo `image`, só `image/jpeg|png|webp`, máx **2 MB**, escrita no bucket só pelo servidor.
@@ -183,7 +187,7 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 - Lógica de negócio em rota ou em repositório; acesso ao Supabase fora de `src/db/`.
 - Teste que chama Supabase real ou depende do horário atual.
 - Adicionar framework, bundler ou biblioteca pesada no front.
-- Calcular frete, pagamento online, cupons, login de cliente: **fora do escopo do MVP**.
+- Calcular frete, pagamento online, cupons, histórico de pedidos do cliente: **fora do escopo do MVP**.
 
 ## Pendências conhecidas
 - **Fotos** dos produtos: ainda não existem; o dono enviará depois (upload pelo admin). Até lá `image_url = null` → placeholder SVG inline na identidade (nunca imagem quebrada).
