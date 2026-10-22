@@ -27,6 +27,18 @@ function itemLines(item) {
     if (notes) lines.push(`   Obs.: ${notes}`);
     return lines;
   }
+  if (item.kind === 'combo') {
+    const lines = [`${q}x ${item.description} — ${formatBRL(item.baseUnitCents * q)}`];
+    for (const choice of item.choices ?? []) {
+      lines.push(`   • ${oneLine(choice.description)}`);
+      for (const addon of choice.addons ?? []) {
+        lines.push(`   + ${addon.name} — ${formatBRL(addon.priceCents * q)}`);
+      }
+    }
+    const notes = oneLine(item.notes);
+    if (notes) lines.push(`   Obs.: ${notes}`);
+    return lines;
+  }
   return [`${q}x ${item.description} — ${formatBRL(item.lineTotalCents)}`];
 }
 

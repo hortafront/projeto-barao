@@ -112,3 +112,70 @@ test('buildWhatsAppUrl: roundtrip e número inválido', () => {
   assert.equal(decodeURIComponent(url.split('?text=')[1]), msg);
   assert.throws(() => buildWhatsAppUrl('123', 'x'));
 });
+
+// --- combo do dia ---
+const comboOrder = (items) => ({ ...order, items });
+const comboItem = (over = {}) => ({
+  kind: 'combo', quantity: 1, description: 'Combo Clássico',
+  choices: [
+    { label: 'Pizza 1', kind: 'pizza', description: 'Pizza meio a meio: Calabresa / Mussarela',
+      addons: [{ name: 'Borda Recheada com Catupiry', priceCents: 450 }] },
+    { label: 'Bebida', kind: 'drink', description: 'Coca-Cola 1 Litro', addons: [] },
+  ],
+  addons: [{ name: 'Borda Recheada com Catupiry', priceCents: 450 }],
+  baseUnitCents: 3690, unitPriceCents: 4140, lineTotalCents: 4140, notes: 'sem\ncebola', ...over,
+});
+// Bloco do item (sem cabeçalho/rodapé da mensagem); confere que a soma dos R$ == lineTotalCents.
+const itemsBlock = (item) => {
+  const all = buildOrderMessage(comboOrder([item])).split('\n');
+  const lines = all.slice(3, all.indexOf('', 3));
+  const sum = lines
+    .map((l) => /R\$ ([\d.]+),(\d{2})/.exec(l))
+    .filter(Boolean)
+    .reduce((acc, m) => acc + Number(m[1].replace(/\./g, '')) * 100 + Number(m[2]), 0);
+  assert.equal(sum, item.lineTotalCents);
+  return lines;
+};
+
+test('combo quantidade 1: pizza, borda, bebida e obs', () => {
+  assert.deepEqual(itemsBlock(comboItem()), [
+    '1x Combo Clássico — R$ 36,90',
+    '   • Pizza meio a meio: Calabresa / Mussarela',
+    '   + Borda Recheada com Catupiry — R$ 4,50',
+    '   • Coca-Cola 1 Litro',
+    '   Obs.: sem cebola',
+  ]);
+});
+
+test('combo quantidade 2 multiplica base e adicionais', () => {
+  const lines = itemsBlock(comboItem({
+    quantity: 2, unitPriceCents: 4140, lineTotalCents: 8280, notes: null,
+  }));
+  assert.equal(lines[0], '2x Combo Clássico — R$ 73,80');
+  assert.equal(lines[2], '   + Borda Recheada com Catupiry — R$ 9,00');
+  assert.equal(lines.length, 4);
+});
+
+test('combo com duas pizzas: cada adicional logo abaixo da sua pizza', () => {
+  const addons = [
+    { name: 'Borda Recheada com Catupiry', priceCents: 450 },
+    { name: 'Borda Chocolate', priceCents: 500 },
+  ];
+  const c = comboItem({
+    notes: null,
+    unitPriceCents: 4640,
+    lineTotalCents: 4640,
+    addons,
+    choices: [
+      { label: 'Pizza 1', kind: 'pizza', description: 'Pizza Calabresa', addons: [addons[0]] },
+      { label: 'Pizza 2', kind: 'pizza', description: 'Pizza Mussarela', addons: [addons[1]] },
+    ],
+  });
+  assert.deepEqual(itemsBlock(c), [
+    '1x Combo Clássico — R$ 36,90',
+    '   • Pizza Calabresa',
+    '   + Borda Recheada com Catupiry — R$ 4,50',
+    '   • Pizza Mussarela',
+    '   + Borda Chocolate — R$ 5,00',
+  ]);
+});
