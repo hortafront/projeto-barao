@@ -85,3 +85,37 @@ dialog#auth-modal { max-width: 28rem; }
 .auth-form__link { justify-self: center; }
 .field-error:empty { display: none; }
 .notice:empty { display: none; }
+
+/* ---------- Janela "Minha conta" ---------- */
+.account-section { display: grid; gap: var(--space-3); }
+.account-section + .account-section { padding-top: var(--space-4); border-top: var(--border-hair); }
+.account-section__title { font-size: var(--fs-lg); color: var(--color-title); }
+.account-email { color: var(--color-text-muted); overflow-wrap: anywhere; }
+.account-empty { color: var(--color-text-muted); }
+.account-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.account-actions .btn { flex: 1 1 8rem; }
+.account-section--end { justify-items: start; }
+.account-delete { color: var(--color-danger); min-height: var(--tap-min); }
+
+.address-list { display: grid; gap: var(--space-3); list-style: none; margin: 0; padding: 0; }
+.address-item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+}
+.address-item__label { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
+.address-item__ref { color: var(--color-text-muted); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.address-item__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.address-item__actions .btn { min-height: var(--tap-min); }
+
+.btn--small { padding: var(--space-2) var(--space-4); }
+.btn--danger { background: var(--color-danger); border-color: var(--color-danger); color: var(--color-danger-contrast); }
+.btn--danger:hover,
+.btn--danger:focus-visible { background: var(--brick-700); }
+
+/* confirmação própria (Apagar / Excluir) */
+dialog.confirm { max-width: 24rem; }
+.confirm__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); justify-content: flex-end; }
+.confirm__actions .btn { min-height: var(--tap-min); }
