@@ -16,10 +16,13 @@ No painel do Supabase abra **SQL Editor** e rode, **nesta ordem** (cole o conte�
 1. `supabase/migrations/0001_schema.sql` (tabelas, RLS, sequence, funções `create_order`/`next_order_code`, bucket `product-images`)
 2. `supabase/migrations/0002_seed_cardapio.sql` (cardápio, horários e configurações iniciais)
 3. `supabase/migrations/0003_clientes.sql` (contas de cliente: `customers`, `customer_addresses`, `orders.customer_id` e `create_order` atualizada)
+4. `supabase/migrations/0004_combos.sql` (combo do dia: `combos`, `combo_slots`, `order_items.combo_id`/`combo_choices`, `create_order` atualizada e rpc `save_combo`)
+
+Depois da 0004, rode no SQL Editor: `notify pgrst, 'reload schema';` (a API passa a enxergar as tabelas e funções novas).
 
 Alternativa: Supabase CLI (`supabase link` + `supabase db push`).
 
-Regra: **nunca edite uma migration já aplicada em produção**. Mudanças futuras vão em `0004_*.sql`, `0005_*.sql`...
+Regra: **nunca edite uma migration já aplicada em produção**. Mudanças futuras vão em `0005_*.sql`, `0006_*.sql`...
 
 ## 3. Autenticação: admin e contas de cliente
 
@@ -108,7 +111,7 @@ Nada abaixo foi executado automaticamente (exige Supabase real, navegador, celul
 
 ### Banco / Supabase
 
-- [ ] Rodar `0001`, `0002` e `0003` (nessa ordem) no projeto real sem erro (pgcrypto, RLS, grants do `service_role`, policies do bucket).
+- [ ] Rodar `0001`, `0002`, `0003` e `0004` (nessa ordem, depois `notify pgrst, 'reload schema';`) no projeto real sem erro (pgcrypto, RLS, grants do `service_role`, policies do bucket).
 - [ ] RLS efetivo: com a chave `anon` direto na API REST do Supabase, as tabelas não devolvem dados.
 - [ ] Smoke test da API (`.env` preenchido, `npm run dev`):
   ```bash
@@ -164,6 +167,14 @@ Exige SMTP configurado (item 3 da seção 3) e e-mail real.
 - [ ] Loja: forçar Fechada -> site mostra Fechado e `POST /api/orders` devolve `STORE_CLOSED`; voltar para Automático; trocar o número -> `wa.me/<novo>` na confirmação; layout no celular.
 - [ ] Pedidos: pedido novo aparece; confirmar, cancelar e voltar; "carregar mais" além de 20; link do WhatsApp; atualiza ao voltar para a aba (`visibilitychange`); layout no celular.
 - [ ] Resumo confere com a lista de pedidos.
+- [ ] Combos: criar um combo (nome, preço, dias, vagas de pizza e bebida, foto); um 2º combo no mesmo dia é recusado com "Já existe um combo na {dia}: {nome}."; marcar Esgotado; excluir combo que já tem pedido devolve 409 e o painel oferece Esgotado.
+
+### Combo do dia
+
+- [ ] Com combo cadastrado para o dia de hoje (Fortaleza), `GET /api/menu` traz `combo` e o site mostra a seção "Promoção do dia"; em dia sem combo, `combo` é `null` e a seção some.
+- [ ] Janela "Montar combo" com pizza meio a meio + borda: o preço ao vivo é o do combo mais os adicionais, igual ao carrinho e ao subtotal da confirmação (o sabor não muda o preço).
+- [ ] Pedido com combo (1 e 2 pizzas): a mensagem do WhatsApp traz `Nx {combo} — R$`, as escolhas em `•` e cada adicional logo abaixo da sua pizza; o pedido no painel mostra o mesmo bloco.
+- [ ] Combo esgotado: "Esgotado hoje" e botão desabilitado; combo de outro dia no carrinho devolve 409 "O {nome} não está disponível hoje.".
 
 ### Desempenho e acessibilidade
 
