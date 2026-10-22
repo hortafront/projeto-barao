@@ -1,22 +1,10 @@
-import { ADMIN_PRODUCT_COLUMNS, toProduct, dbError } from './mappers.js';
+import { ADMIN_PRODUCT_COLUMNS, toProduct, dbError, storagePathFromUrl, BUCKET, IMAGE_EXT as EXT } from './mappers.js';
 import { AppError } from '../../errors/AppError.js';
 
-const BUCKET = 'product-images';
-const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 const toRow = (p) => Object.fromEntries(Object.entries({
   category_id: p.categoryId, kind: p.kind, name: p.name, description: p.description,
   price_cents: p.priceCents, available: p.available, sort_order: p.sortOrder, addon_group: p.addonGroup,
 }).filter(([, v]) => v !== undefined)); // PUT parcial: não sobrescreve com undefined
-
-/** Caminho no bucket a partir da URL pública (parte após '/product-images/'); null se não for do bucket. */
-function storagePathFromUrl(url) {
-  if (!url) return null;
-  const marker = `/${BUCKET}/`;
-  const i = url.indexOf(marker);
-  if (i === -1) return null;
-  const path = decodeURIComponent(url.slice(i + marker.length).split('?')[0]);
-  return path || null;
-}
 
 export function createProductsRepo(supabase) {
   async function update(id, row, op) {
