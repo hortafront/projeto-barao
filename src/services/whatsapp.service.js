@@ -30,7 +30,7 @@ function itemLines(item) {
   if (item.kind === 'combo') {
     const lines = [`${q}x ${item.description} — ${formatBRL(item.baseUnitCents * q)}`];
     for (const choice of item.choices ?? []) {
-      lines.push(`   • ${choice.description}`);
+      lines.push(`   • ${oneLine(choice.description)}`);
       for (const addon of choice.addons ?? []) {
         lines.push(`   + ${addon.name} — ${formatBRL(addon.priceCents * q)}`);
       }
