@@ -318,6 +318,9 @@ dialog.modal--pizza {
   cursor: pointer;
 }
 .choice:hover { background: var(--color-surface-hover); }
+.choice:has(input:disabled) { cursor: not-allowed; }
+.choice:has(input:disabled) .choice__label { color: var(--color-text-muted); }
+.choice:has(input:disabled):hover { background: transparent; }
 .choice:has(input:checked) { border-color: var(--color-frame); background: var(--color-surface-hover); }
 .choice input { flex: none; width: 1.25rem; height: 1.25rem; accent-color: var(--color-accent); }
 .choice__label { flex: 1; min-width: 0; overflow-wrap: anywhere; color: var(--color-text-strong); }

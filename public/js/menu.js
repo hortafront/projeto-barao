@@ -127,7 +127,7 @@ function comboCard(combo, { storeOpen, onOpenCombo }) {
     el('div', { class: 'product-card__media' }, productThumb({ ...combo, kind: 'pizza' })),
     el('div', { class: 'product-card__body' },
       el('span', { class: 'badge combo-card__badge' }, 'Promoção do dia'),
-      el('h3', { class: 'product-card__name', id: 'promo-dia-title' }, combo.name),
+      el('h2', { class: 'product-card__name', id: 'promo-dia-title' }, combo.name),
       combo.description && el('p', { class: 'product-card__desc' }, combo.description),
       el('ul', { class: 'combo-card__slots' }, (combo.slots ?? []).map((slot) => el('li', {}, slot.label))),
       el('div', { class: 'product-card__footer' },
@@ -141,9 +141,11 @@ function comboCard(combo, { storeOpen, onOpenCombo }) {
         }, soldOut ? 'Esgotado hoje' : 'Montar combo'))));
 }
 
-function comboSection(combo, opts) {
-  return el('section', { class: 'menu-section combo-section', id: 'promo-dia', 'aria-labelledby': 'promo-dia-title' },
-    comboCard(combo, opts));
+/** Desenha o combo no container fixo acima das abas; sem combo, esvazia e esconde. */
+function renderCombo(promoRoot, combo, opts) {
+  if (!promoRoot) return;
+  promoRoot.hidden = !combo;
+  render(promoRoot, combo && comboCard(combo, opts));
 }
 
 // ---------- Abas e seções ----------
@@ -169,7 +171,7 @@ function observeSections(root, tabsRoot) {
   tabsObserver?.disconnect();
   tabsObserver = null;
   if (typeof IntersectionObserver !== 'function') return;
-  const sections = [...root.querySelectorAll('section[id]')];
+  const sections = [...root.querySelectorAll('section[id^="cat-"]')];
   if (sections.length === 0) return;
   // faixa de detecção logo abaixo do header + abas
   tabsObserver = new IntersectionObserver((entries) => {
@@ -181,7 +183,7 @@ function observeSections(root, tabsRoot) {
   for (const section of sections) tabsObserver.observe(section);
 }
 
-export function renderMenu(root, tabsRoot, menu, { storeOpen = false, onOpenPizza, onAddDrink, combo = null, onOpenCombo } = {}) {
+export function renderMenu(root, tabsRoot, menu, { storeOpen = false, onOpenPizza, onAddDrink, combo = null, onOpenCombo, promoRoot = null } = {}) {
   const categories = visibleCategories(menu);
   const opts = { storeOpen, onOpenPizza, onAddDrink };
 
@@ -193,14 +195,16 @@ export function renderMenu(root, tabsRoot, menu, { storeOpen = false, onOpenPizz
     onclick: () => setActiveTab(tabsRoot, `cat-${category.slug}`),
   }, category.name)));
 
-  render(root, [combo && comboSection(combo, { storeOpen, onOpenCombo }), ...categories.map((category) => {
+  renderCombo(promoRoot, combo, { storeOpen, onOpenCombo });
+
+  render(root, categories.map((category) => {
     const products = [...category.products].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     return el('section', {
       class: 'menu-section', id: `cat-${category.slug}`, 'aria-labelledby': `cat-${category.slug}-title`,
     },
     el('h2', { class: 'menu-section__title', id: `cat-${category.slug}-title` }, category.name),
     el('div', { class: 'menu-section__grid' }, products.map((p) => productCard(p, opts))));
-  })]);
+  }));
 
   root.setAttribute('aria-busy', 'false');
   observeSections(root, tabsRoot);

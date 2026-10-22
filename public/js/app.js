@@ -128,6 +128,7 @@ function addToCart(item, product) {
 function paintMenu() {
   renderMenu(root, tabsRoot, menu, {
     storeOpen: storeOpen(),
+    promoRoot: $('#promo-dia'),
     combo: menu.combo ?? null,
     onOpenCombo: (combo) => openComboModal(comboDialog, productsById.get(combo.id) ?? combo, {
       menu,
