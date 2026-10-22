@@ -368,4 +368,79 @@ describe('POST /api/orders — combo do dia', () => {
     assert.equal(res.status, 409);
     assert.equal(res.body.error.code, 'PRODUCT_UNAVAILABLE');
   });
+
+  const withSlots = (combo, slots) => validOrder({ items: [{ kind: 'combo', comboId: combo.id, quantity: 1, slots }] });
+  const pizzaSlot = (flavorIds, addonIds = []) => ({ kind: 'pizza', flavorIds, addonIds });
+  const drinkSlot = { kind: 'drink', productId: IDS.coca1l };
+
+  it('mensagem do WhatsApp traz o bloco do combo', async () => {
+    const { app, db } = makeApp({ now: THURSDAY_22H });
+    const combo = await seedCombo(db);
+    const res = await post(app, comboBody(combo));
+    assert.equal(res.status, 201);
+    assert.ok(res.body.whatsappUrl);
+    const msg = res.body.message;
+    assert.match(msg, /2x Combo Clássico — R\$\s?73,80/);
+    assert.match(msg, /• Pizza meio a meio: Calabresa \/ Mussarela/);
+    assert.match(msg, /\+ Borda Recheada com Catupiry — R\$\s?9,00/);
+    assert.match(msg, /• Coca-Cola 1 Litro/);
+  });
+
+  it('combo inexistente → 409', async () => {
+    const { app, db } = makeApp({ now: THURSDAY_22H });
+    const combo = await seedCombo(db);
+    const res = await post(app, withSlots({ id: IDS.mista }, [pizzaSlot([IDS.mista]), drinkSlot]));
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error.code, 'PRODUCT_UNAVAILABLE');
+    assert.equal(res.body.error.message, 'Este combo não está mais disponível.');
+    assert.equal(combo.id === IDS.mista, false);
+  });
+
+  it('vagas divergentes (menos vagas / kind trocado) → 400 items.0.slots', async () => {
+    const { app, db } = makeApp({ now: THURSDAY_22H });
+    const combo = await seedCombo(db);
+    for (const slots of [[pizzaSlot([IDS.mista])], [drinkSlot, pizzaSlot([IDS.mista])]]) {
+      const res = await post(app, withSlots(combo, slots));
+      assert.equal(res.status, 400);
+      assert.equal(res.body.error.code, 'VALIDATION_ERROR');
+      assert.equal(res.body.error.details[0].path, 'items.0.slots');
+    }
+  });
+
+  it('sabor fora da vaga → 400', async () => {
+    const { app, db } = makeApp({ now: THURSDAY_22H });
+    const combo = await seedCombo(db);
+    const res = await post(app, withSlots(combo, [pizzaSlot([IDS.frango]), drinkSlot]));
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error.code, 'VALIDATION_ERROR');
+    assert.equal(res.body.error.details[0].path, 'items.0.slots.0.flavorIds');
+  });
+
+  it('sabor esgotado dentro do combo → 409 agregado com o nome', async () => {
+    const { app, db } = makeApp({ now: THURSDAY_22H });
+    const combo = await seedCombo(db);
+    await db.setProductAvailability(IDS.mista, false);
+    const res = await post(app, withSlots(combo, [pizzaSlot([IDS.mista]), drinkSlot]));
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error.code, 'PRODUCT_UNAVAILABLE');
+    assert.match(res.body.error.message, /Mista/);
+  });
+
+  it('duas bordas na mesma vaga → 400 "Escolha apenas uma borda por pizza."', async () => {
+    const { app, db } = makeApp({ now: THURSDAY_22H });
+    const combo = await seedCombo(db);
+    const res = await post(app, withSlots(combo, [pizzaSlot([IDS.mista], [IDS.bordaCatupiry, IDS.bordaChocolate]), drinkSlot]));
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error.code, 'VALIDATION_ERROR');
+    assert.equal(res.body.error.details[0].message, 'Escolha apenas uma borda por pizza.');
+  });
+
+  it('virada da meia-noite: 02:59Z (quinta local) aceita; 03:00Z (sexta) recusa', async () => {
+    for (const [now, status] of [['2026-10-23T02:59:00Z', 201], ['2026-10-23T03:00:00Z', 409]]) {
+      const { app, db } = makeApp({ now, settings: { storeOverride: 'open' } });
+      const combo = await seedCombo(db);
+      const res = await post(app, comboBody(combo));
+      assert.equal(res.status, status);
+    }
+  });
 });

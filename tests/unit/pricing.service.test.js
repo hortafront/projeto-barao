@@ -179,6 +179,18 @@ describe('priceOrderItems — combo do dia', async () => {
     assert.deepEqual(item.productIds, [IDS.calabresa, IDS.mussarela, IDS.bordaCatupiry, IDS.coca1l]);
   });
 
+  it('addon em flavorIds → 400; sabor em addonIds → 400', () => {
+    fails([comboItem([pz([IDS.bordaCatupiry]), dk()])], opts(), 'VALIDATION_ERROR', 400);
+    fails([comboItem([pz([IDS.mista], [IDS.mussarela]), dk()])], opts(), 'VALIDATION_ERROR', 400, 'items.0.slots.0.addonIds');
+  });
+
+  it('collectComboIds deduplica', async () => {
+    const { collectComboIds } = await import('../../src/services/pricing.service.js');
+    const a = comboItem([pz([IDS.mista]), dk()]);
+    assert.deepEqual(collectComboIds([a, a, pizza2()]), [combo.id]);
+    function pizza2() { return { kind: 'pizza', flavorIds: [IDS.mista], addonIds: [], quantity: 1 }; }
+  });
+
   it('pizza inteira usa "Pizza X"', () => {
     const [item] = priceOrderItems([comboItem([pz([IDS.mista]), dk()])], productsById(), opts());
     assert.equal(item.choices[0].description, 'Pizza Mista');
