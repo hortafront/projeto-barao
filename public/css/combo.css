@@ -1,0 +1,40 @@
+/* ---------- Promoção do dia (card + janela "Montar combo") ---------- */
+.combo-section { margin-bottom: var(--space-6); }
+
+.combo-card {
+  border: 2px solid var(--color-accent);
+  box-shadow: var(--frame-inset), var(--shadow-glow);
+}
+.combo-card__badge {
+  align-self: flex-start;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
+}
+.combo-card__slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+}
+.combo-card__slots li + li::before { content: '+'; margin-right: var(--space-3); color: var(--color-accent); }
+.combo-card__cta { min-height: var(--tap-min); min-width: var(--tap-min); }
+.combo-card.is-soldout { border-color: var(--color-border); box-shadow: var(--frame-inset), var(--shadow-sm); }
+
+.combo-modal__tag {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.combo-modal__base { margin: var(--space-1) 0 0; color: var(--color-price); font-weight: var(--fw-semibold); }
+.combo-step__body { display: grid; gap: var(--space-3); }
+.combo-step__second { margin: 0; }

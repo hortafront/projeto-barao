@@ -8,6 +8,7 @@ import { initCheckout } from './checkout.js';
 import { $ } from './dom.js';
 import { createLoginGate } from './login-gate.js';
 import { renderMenu, renderMenuError, renderMenuLoading, renderStoreStatus } from './menu.js';
+import { openComboModal } from './combo-modal.js';
 import { openPizzaModal } from './product-modal.js';
 
 const STATUS_REFRESH_MS = 60_000;
@@ -18,6 +19,7 @@ const tabsRoot = $('#category-tabs');
 const statusEls = { badge: $('#store-status'), banner: $('#status-banner') };
 const toastEl = $('#toast');
 const pizzaDialog = $('#product-modal');
+const comboDialog = $('#combo-modal');
 const accountButton = $('#account-button');
 
 const cart = createCart({ storage: globalThis.localStorage });
@@ -104,6 +106,8 @@ function indexProducts(data) {
   for (const category of data.categories ?? []) {
     for (const product of category.products ?? []) map.set(product.id, product);
   }
+  // O combo do dia entra no mesmo índice (kind 'combo'); o carrinho o lê daqui.
+  if (data.combo) map.set(data.combo.id, { ...data.combo, kind: 'combo' });
   return map;
 }
 
@@ -118,12 +122,21 @@ function addToCart(item, product) {
     return;
   }
   checkout?.refresh();
-  toast(`${product.name} adicionada`);
+  toast(product.slots ? `${product.name} adicionado` : `${product.name} adicionada`);
 }
 
 function paintMenu() {
   renderMenu(root, tabsRoot, menu, {
     storeOpen: storeOpen(),
+    promoRoot: $('#promo-dia'),
+    combo: menu.combo ?? null,
+    onOpenCombo: (combo) => openComboModal(comboDialog, productsById.get(combo.id) ?? combo, {
+      menu,
+      productsById,
+      onAdd: (item) => {
+        addToCart(item, combo);
+      },
+    }),
     onOpenPizza: (product) => openPizzaModal(pizzaDialog, product, {
       menu,
       productsById,

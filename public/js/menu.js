@@ -118,6 +118,36 @@ function productCard(product, { storeOpen, onOpenPizza, onAddDrink }) {
         }, '+'))));
 }
 
+// ---------- Promoção do dia ----------
+
+function comboCard(combo, { storeOpen, onOpenCombo }) {
+  const soldOut = combo.available === false;
+  const closed = !storeOpen;
+  return el('article', { class: `product-card combo-card${soldOut ? ' is-soldout' : ''}` },
+    el('div', { class: 'product-card__media' }, productThumb({ ...combo, kind: 'pizza' })),
+    el('div', { class: 'product-card__body' },
+      el('span', { class: 'badge combo-card__badge' }, 'Promoção do dia'),
+      el('h2', { class: 'product-card__name', id: 'promo-dia-title' }, combo.name),
+      combo.description && el('p', { class: 'product-card__desc' }, combo.description),
+      el('ul', { class: 'combo-card__slots' }, (combo.slots ?? []).map((slot) => el('li', {}, slot.label))),
+      el('div', { class: 'product-card__footer' },
+        el('span', { class: 'price product-card__price' }, formatBRL(combo.priceCents)),
+        el('button', {
+          type: 'button',
+          class: 'btn btn--primary combo-card__cta',
+          disabled: soldOut || closed,
+          title: !soldOut && closed ? 'Loja fechada no momento' : null,
+          onclick: soldOut || closed ? null : () => onOpenCombo?.(combo),
+        }, soldOut ? 'Esgotado hoje' : 'Montar combo'))));
+}
+
+/** Desenha o combo no container fixo acima das abas; sem combo, esvazia e esconde. */
+function renderCombo(promoRoot, combo, opts) {
+  if (!promoRoot) return;
+  promoRoot.hidden = !combo;
+  render(promoRoot, combo && comboCard(combo, opts));
+}
+
 // ---------- Abas e seções ----------
 
 function visibleCategories(menu) {
@@ -141,7 +171,7 @@ function observeSections(root, tabsRoot) {
   tabsObserver?.disconnect();
   tabsObserver = null;
   if (typeof IntersectionObserver !== 'function') return;
-  const sections = [...root.querySelectorAll('section[id]')];
+  const sections = [...root.querySelectorAll('section[id^="cat-"]')];
   if (sections.length === 0) return;
   // faixa de detecção logo abaixo do header + abas
   tabsObserver = new IntersectionObserver((entries) => {
@@ -153,7 +183,7 @@ function observeSections(root, tabsRoot) {
   for (const section of sections) tabsObserver.observe(section);
 }
 
-export function renderMenu(root, tabsRoot, menu, { storeOpen = false, onOpenPizza, onAddDrink } = {}) {
+export function renderMenu(root, tabsRoot, menu, { storeOpen = false, onOpenPizza, onAddDrink, combo = null, onOpenCombo, promoRoot = null } = {}) {
   const categories = visibleCategories(menu);
   const opts = { storeOpen, onOpenPizza, onAddDrink };
 
@@ -164,6 +194,8 @@ export function renderMenu(root, tabsRoot, menu, { storeOpen = false, onOpenPizz
     'aria-current': index === 0 ? 'true' : null,
     onclick: () => setActiveTab(tabsRoot, `cat-${category.slug}`),
   }, category.name)));
+
+  renderCombo(promoRoot, combo, { storeOpen, onOpenCombo });
 
   render(root, categories.map((category) => {
     const products = [...category.products].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
