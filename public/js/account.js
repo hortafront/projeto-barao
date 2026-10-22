@@ -45,6 +45,17 @@ export function initAccount({ dialog, account, auth, toast = () => {} }) {
 
   function close() { closeDialog?.(); }
 
+  /** Depois de um salvamento com erro: foco no primeiro campo inválido ou na mensagem geral. */
+  function focusFirstError() {
+    const target = dialog.querySelector('[aria-invalid="true"]')
+      ?? dialog.querySelector('.field-error:not(:empty)');
+    if (target && !target.matches('input')) target.setAttribute('tabindex', '-1');
+    target?.focus();
+  }
+
+  // Sessão perdida (401 sem refresh): fecha a janela para não deixar dados pessoais na tela.
+  auth.onSessionLost?.(() => { if (dialog.open) close(); });
+
   /** Confirmação própria (sem window.confirm). Resolve true/false. */
   function confirmDialog({ title, text, confirmLabel }) {
     return new Promise((resolve) => {
@@ -84,7 +95,8 @@ export function initAccount({ dialog, account, auth, toast = () => {} }) {
     try {
       const res = await call();
       if (!res.ok) { onError(res.error); return false; }
-      if (!(await reload())) { formError = RELOAD_ERROR; return false; }
+      // a chamada deu certo: mesmo que o reload falhe, quem chamou segue como sucesso (evita reenvio duplicado)
+      formError = (await reload()) ? '' : RELOAD_ERROR;
       return true;
     } finally {
       busy = false;
@@ -95,11 +107,16 @@ export function initAccount({ dialog, account, auth, toast = () => {} }) {
   // ---------- perfil ----------
   function profileSection() {
     const draft = profileDraft ?? { name: me.profile?.name ?? '', phone: maskPhone(me.profile?.phone ?? '') };
-    const name = field({ id: 'acc-name', label: 'Nome', type: 'text', autocomplete: 'name', maxlength: '60', required: true, value: draft.name, error: profileErrors.name });
+    const name = field({ id: 'acc-name', label: 'Nome', type: 'text', autocomplete: 'name', maxlength: '60', required: true, value: draft.name, error: profileErrors.name,
+      oninput: (event) => { profileDraft = { ...(profileDraft ?? draft), name: event.target.value }; },
+    });
     const phone = field({
       id: 'acc-phone', label: 'Telefone (WhatsApp)', type: 'tel', inputmode: 'numeric', autocomplete: 'tel-national',
       placeholder: '(85) 99999-9999', required: true, value: draft.phone, error: profileErrors.phone,
-      oninput: (event) => { event.target.value = maskPhone(event.target.value); },
+      oninput: (event) => {
+        event.target.value = maskPhone(event.target.value);
+        profileDraft = { ...(profileDraft ?? draft), phone: event.target.value };
+      },
     });
     const general = el('p', { class: 'field-error', 'aria-live': 'polite' }, profileErrors._general ?? '');
     return el('form', {
@@ -116,7 +133,7 @@ export function initAccount({ dialog, account, auth, toast = () => {} }) {
             if (!Object.keys(profileErrors).length) profileErrors._general = error.message;
           },
         );
-        if (ok) { profileDraft = null; toast('Dados salvos.'); }
+        if (ok) { profileDraft = null; paint(); if (!formError) toast('Dados salvos.'); } else focusFirstError();
       },
     },
     el('h3', { class: 'account-section__title' }, 'Seus dados'),
@@ -152,6 +169,7 @@ export function initAccount({ dialog, account, auth, toast = () => {} }) {
               () => account.customerApi(`/api/me/addresses/${address.id}`, { method: 'DELETE' }),
               (error) => { formError = error.message; },
             );
+            dialog.querySelector('#acc-add')?.focus(); // o botão Apagar saiu do DOM
           },
         }, 'Apagar')));
   }
@@ -164,7 +182,7 @@ export function initAccount({ dialog, account, auth, toast = () => {} }) {
         ? el('ul', { class: 'address-list' }, me.addresses.map(addressRow))
         : el('p', { class: 'account-empty' }, 'Você ainda não salvou nenhum endereço.'),
       el('button', {
-        type: 'button', class: 'btn', disabled: busy || full, 'aria-describedby': full ? 'acc-limit' : undefined,
+        type: 'button', id: 'acc-add', class: 'btn', disabled: busy || full, 'aria-describedby': full ? 'acc-limit' : undefined,
         onclick: () => openAddressForm(null),
       }, 'Adicionar endereço'),
       el('p', { id: 'acc-limit', class: 'field__hint', hidden: !full }, LIMIT_MESSAGE));
@@ -220,7 +238,11 @@ export function initAccount({ dialog, account, auth, toast = () => {} }) {
             if (!Object.keys(addressErrors).length) formError = error.message;
           },
         );
-        if (ok) { view = { name: 'main' }; paint(); toast(address ? 'Endereço atualizado.' : 'Endereço salvo.'); }
+        if (ok) {
+          view = { name: 'main' };
+          paint();
+          if (!formError) toast(address ? 'Endereço atualizado.' : 'Endereço salvo.');
+        } else focusFirstError();
       },
     },
     el('h3', { class: 'account-section__title' }, address ? 'Editar endereço' : 'Novo endereço'),
@@ -280,9 +302,15 @@ export function initAccount({ dialog, account, auth, toast = () => {} }) {
   }
 
   /** Abre pelo gate: sem login ou com perfil incompleto, passa antes pelas janelas de T10. */
-  function open() {
-    if (dialog.open) return;
-    account.gate.run((loaded) => show(loaded));
+  let opening = false;
+  async function open() {
+    if (opening || dialog.open) return;
+    opening = true;
+    try {
+      await account.gate.run((loaded) => { if (!dialog.open) show(loaded); });
+    } finally {
+      opening = false;
+    }
   }
 
   return { open };
