@@ -110,6 +110,11 @@ dialog#auth-modal { max-width: 28rem; }
 .address-item__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .address-item__actions .btn { min-height: var(--tap-min); }
 
+.btn--small { padding: var(--space-2) var(--space-4); }
+.btn--danger { background: var(--color-danger); border-color: var(--color-danger); color: var(--color-danger-contrast); }
+.btn--danger:hover,
+.btn--danger:focus-visible { background: var(--brick-700); }
+
 /* confirmação própria (Apagar / Excluir) */
 dialog.confirm { max-width: 24rem; }
 .confirm__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); justify-content: flex-end; }
