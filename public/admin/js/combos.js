@@ -173,7 +173,7 @@ export async function mount(container, ctx) {
 
     // estado das vagas (fonte da verdade; o DOM das vagas é redesenhado nas mudanças estruturais)
     const slots = (combo?.slots ?? [{ label: 'Pizza', kind: 'pizza', productIds: [] }])
-      .map((s) => ({ label: s.label, kind: s.kind, productIds: new Set(s.productIds) }));
+      .map((s) => ({ label: s.label, kind: s.kind, productIds: new Set(s.productIds.filter((id) => products.some((p) => p.id === id))) }));
     const days = new Set(combo?.weekdays ?? []);
 
     const errors = new Map(); // path -> <p>

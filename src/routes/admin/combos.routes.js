@@ -6,21 +6,22 @@ import { imageUpload, sniffImageType } from '../../middleware/upload.js';
 import { comboInputSchema } from '../../schemas/combo.schema.js';
 import { availabilitySchema } from '../../schemas/product.schema.js';
 import { idParamSchema } from '../../schemas/order.schema.js';
-import { assertComboInput } from '../../services/combo.service.js';
+import { assertComboInput, withExistingProducts } from '../../services/combo.service.js';
 
 const notFound = () => new AppError('NOT_FOUND', 404, 'Combo não encontrado.');
+const clean = async (db, combo) => (await withExistingProducts(db, [combo]))[0];
 
 /** Montado em /api/admin/combos (já atrás do requireAdmin). */
 export function combosRoutes({ db }) {
   const router = express.Router();
 
   router.get('/', asyncHandler(async (req, res) => {
-    res.json({ combos: await db.listCombos() });
+    res.json({ combos: await withExistingProducts(db, await db.listCombos()) });
   }));
 
   router.post('/', validate(comboInputSchema), asyncHandler(async (req, res) => {
     await assertComboInput(db, req.body);
-    res.status(201).json({ combo: await db.createCombo(req.body) });
+    res.status(201).json({ combo: await clean(db, await db.createCombo(req.body)) });
   }));
 
   router.put('/:id', validate(idParamSchema, 'params'), validate(comboInputSchema), asyncHandler(async (req, res) => {
@@ -29,7 +30,7 @@ export function combosRoutes({ db }) {
     await assertComboInput(db, req.body, { excludeId: id });
     const combo = await db.updateCombo(id, req.body);
     if (!combo) throw notFound();
-    res.json({ combo });
+    res.json({ combo: await clean(db, combo) });
   }));
 
   router.delete('/:id', validate(idParamSchema, 'params'), asyncHandler(async (req, res) => {
@@ -42,7 +43,7 @@ export function combosRoutes({ db }) {
   router.patch('/:id/availability', validate(idParamSchema, 'params'), validate(availabilitySchema), asyncHandler(async (req, res) => {
     const combo = await db.setComboAvailability(req.valid.params.id, req.body.available);
     if (!combo) throw notFound();
-    res.json({ combo });
+    res.json({ combo: await clean(db, combo) });
   }));
 
   router.post('/:id/image', validate(idParamSchema, 'params'), imageUpload, asyncHandler(async (req, res) => {
@@ -53,7 +54,7 @@ export function combosRoutes({ db }) {
       throw new AppError('VALIDATION_ERROR', 400, 'Envie uma imagem JPG, PNG ou WebP.');
     }
     if (!(await db.getCombo(id))) throw notFound(); // 404 antes de subir arquivo
-    res.json({ combo: await db.uploadComboImage(id, { buffer: req.file.buffer, contentType: sniffed }) });
+    res.json({ combo: await clean(db, await db.uploadComboImage(id, { buffer: req.file.buffer, contentType: sniffed })) });
   }));
 
   return router;
