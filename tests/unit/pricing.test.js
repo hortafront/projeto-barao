@@ -6,6 +6,7 @@ import {
   calcPizzaUnitCents,
   calcItemCents,
   calcOrderSubtotalCents,
+  calcComboUnitCents,
 } from '../../shared/pricing.js';
 
 const p = (priceCents) => ({ priceCents });
@@ -58,4 +59,34 @@ test('TypeError para preço não inteiro/negativo e kind inválido', () => {
   assert.throws(() => calcPizzaBaseCents([p(34.99)]), TypeError);
   assert.throws(() => calcPizzaBaseCents([p(-1)]), TypeError);
   assert.throws(() => calcItemCents({ kind: 'addon', quantity: 1 }), TypeError);
+});
+
+test('calcComboUnitCents soma os adicionais ao preço do combo', () => {
+  assert.equal(calcComboUnitCents({ priceCents: 3690 }, [p(450)]), 4140);
+});
+
+test('calcComboUnitCents sem adicionais devolve o preço do combo', () => {
+  assert.equal(calcComboUnitCents({ priceCents: 3690 }), 3690);
+});
+
+test('linha de combo multiplica (combo + adicionais) pela quantidade', () => {
+  const item = { kind: 'combo', combo: p(3690), addons: [p(450), p(999)], quantity: 2 };
+  assert.equal(calcItemCents(item), 10278);
+});
+
+test('calcComboUnitCents rejeita preço do combo inválido', () => {
+  assert.throws(() => calcComboUnitCents({ priceCents: -1 }), TypeError);
+  assert.throws(() => calcComboUnitCents({ priceCents: 1.5 }), TypeError);
+});
+
+test('linha de combo rejeita quantidade fora de 1–20', () => {
+  assert.throws(() => calcItemCents({ kind: 'combo', combo: p(3690), addons: [], quantity: 21 }), RangeError);
+});
+
+test('subtotal do pedido soma pizza e combo', () => {
+  const items = [
+    { kind: 'pizza', flavors: [p(3049)], addons: [], quantity: 1 },
+    { kind: 'combo', combo: p(3690), addons: [p(450)], quantity: 2 },
+  ];
+  assert.equal(calcOrderSubtotalCents(items), 3049 + (3690 + 450) * 2);
 });
