@@ -239,3 +239,26 @@ describe('POST /api/admin/combos/:id/image', () => {
     assert.equal(uploads, 0);
   });
 });
+
+describe('produto excluído some das vagas (spec §3.4)', () => {
+  it('GET não lista o id apagado e o PUT do combo devolvido passa', async () => {
+    const { app, db } = makeApp({ users });
+    const combo = await seedCombo(db);
+    const del = await request(app).delete(`/api/admin/products/${IDS.marguerita}`).set(auth);
+    assert.equal(del.status, 204);
+
+    const list = await request(app).get('/api/admin/combos').set(auth);
+    assert.equal(list.status, 200);
+    const got = list.body.combos[0];
+    assert.ok(!got.slots[0].productIds.includes(IDS.marguerita));
+    assert.equal(got.slots[0].productIds.length, 3);
+
+    const body = {
+      name: got.name, description: got.description, priceCents: 3990, weekdays: got.weekdays,
+      slots: got.slots.map((s) => ({ label: s.label, kind: s.kind, productIds: s.productIds })),
+    };
+    const put = await request(app).put(`/api/admin/combos/${combo.id}`).set(auth).send(body);
+    assert.equal(put.status, 200);
+    assert.ok(!put.body.combo.slots[0].productIds.includes(IDS.marguerita));
+  });
+});

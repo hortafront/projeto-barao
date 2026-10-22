@@ -80,7 +80,13 @@ export function createCombosRepo(supabase) {
         throw new AppError('PRODUCT_HAS_ORDERS', 409, 'Combo já tem pedidos; marque como esgotado em vez de excluir');
       }
       const { data, error } = await supabase.from('combos').delete().eq('id', id).select('id, image_url');
-      if (error) throw dbError('deleteCombo', error);
+      if (error) {
+        // corrida: um pedido referenciou o combo entre a contagem e o delete (restrict_violation / foreign_key_violation)
+        if (error.code === '23001' || error.code === '23503') {
+          throw new AppError('PRODUCT_HAS_ORDERS', 409, 'Combo já tem pedidos; marque como esgotado em vez de excluir');
+        }
+        throw dbError('deleteCombo', error);
+      }
       if (data.length === 0) return false;
       await removeImage(data[0].image_url);
       return true;

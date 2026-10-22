@@ -36,7 +36,16 @@ export async function getTodayPublicCombo(db, { now, timeZone, productsById }) {
   };
 }
 
-const invalid = (path, message) => new AppError('VALIDATION_ERROR', 400, message, [{ path, message }]);
+/** Combos do admin sem os ids de produtos que não existem mais (spec §3.4): o dono não vê "fantasmas" nas vagas. */
+export async function withExistingProducts(db, combos) {
+  const existing = new Set((await db.listProducts()).map((p) => p.id));
+  return combos.map((c) => ({
+    ...c,
+    slots: c.slots.map((s) => ({ ...s, productIds: s.productIds.filter((id) => existing.has(id)) })),
+  }));
+}
+
+const invalid =(path, message) => new AppError('VALIDATION_ERROR', 400, message, [{ path, message }]);
 
 /** Regras de cadastro que dependem do banco (o formato já foi validado pelo schema). */
 export async function assertComboInput(db, input, { excludeId = null } = {}) {

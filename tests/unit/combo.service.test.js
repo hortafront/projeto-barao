@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createFakeDb } from '../helpers/fakeDb.js';
 import { IDS, seedCombo } from '../helpers/testkit.js';
-import { WEEKDAY_NAMES, todayWeekday, getTodayPublicCombo, assertComboInput } from '../../src/services/combo.service.js';
+import { WEEKDAY_NAMES, todayWeekday, getTodayPublicCombo, assertComboInput, withExistingProducts } from '../../src/services/combo.service.js';
 
 const TZ = 'America/Fortaleza';
 const THU = new Date('2026-10-23T02:59:00Z');
@@ -91,4 +91,13 @@ test('getTodayPublicCombo: combo esgotado pelo dono -> available false', async (
   await db.setComboAvailability(c0.id, false);
   const c = await getTodayPublicCombo(db, { now: THU, timeZone: TZ, productsById: await publicMap(db) });
   assert.equal(c.available, false);
+});
+
+test('withExistingProducts tira das vagas ids que não existem mais', async () => {
+  const db = { listProducts: async () => [{ id: 'a' }, { id: 'c' }] };
+  const combo = { id: 'x', name: 'N', slots: [{ id: 's', position: 0, label: 'P', kind: 'pizza', productIds: ['a', 'b', 'c'] }] };
+  const [out] = await withExistingProducts(db, [combo]);
+  assert.deepEqual(out.slots[0].productIds, ['a', 'c']);
+  assert.equal(out.name, 'N');
+  assert.deepEqual(combo.slots[0].productIds, ['a', 'b', 'c']); // não muta
 });
