@@ -55,7 +55,7 @@ public/js/cart.js            carrinho em localStorage `barao:cart:v1` (só ids e
 public/js/                   app.js, menu.js, product-modal.js, checkout.js
 public/img/                  imagens estáticas (logo, mascote)
 public/admin/                index.html (login), painel.html, js/
-public/js/                   também: auth.js (sessão do cliente), customer-api.js, login-gate.js, auth-dialog.js, account-dialog.js (Minha conta)
+public/js/                   também: auth.js (sessão do cliente), customer-api.js, login-gate.js, auth-dialog.js, account.js (Minha conta)
 public/conta/nova-senha.html recuperação de senha do cliente
 shared/money.js              formatBRL(cents), parseBRLToCents — puro, servido em /shared
 shared/pricing.js            calcPizzaUnitCents, calcItemCents, calcOrderSubtotalCents — puro, servido em /shared
