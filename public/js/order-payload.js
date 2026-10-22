@@ -23,6 +23,52 @@ export class FieldError extends Error {
 
 const text = (fields, key) => String(fields[key] ?? '').trim();
 
+// ---------- conta do cliente: perfil e endereços salvos ----------
+export const NEW_ADDRESS = 'new';
+
+/** Id do endereço padrão (ou o primeiro); sem endereços salvos, 'new'. */
+export function defaultAddressChoice(addresses) {
+  const list = Array.isArray(addresses) ? addresses : [];
+  return (list.find((a) => a.isDefault) ?? list[0])?.id ?? NEW_ADDRESS;
+}
+
+/** Rótulo curto de um endereço salvo (também usado em "Minha conta"). */
+export function addressLabel(address) {
+  const line = `${address.street}, ${address.number}`;
+  return address.label ? `${address.label} — ${line}` : `${line} — ${address.district}`;
+}
+
+/** Nome e telefone (com máscara) do perfil, para preencher o checkout. */
+export function prefillFromMe(me) {
+  return { name: me?.profile?.name ?? '', phone: maskPhone(me?.profile?.phone ?? '') };
+}
+
+/** Escolha de endereço salvo substitui os inputs de endereço; 'new'/ausente e retirada não mexem em nada. */
+export function applyAddressChoice(fields, addresses) {
+  const choice = fields.addressChoice;
+  if (fields.fulfillment !== 'delivery' || !choice || choice === NEW_ADDRESS) return fields;
+  const saved = (addresses ?? []).find((a) => a.id === choice);
+  if (!saved) throw new FieldError('addressChoice', 'Escolha um endereço.');
+  return {
+    ...fields,
+    street: saved.street,
+    number: saved.number,
+    district: saved.district,
+    reference: saved.reference ?? '',
+  };
+}
+
+/** Endereço digitado para guardar na conta (só entrega + "Usar outro endereço" + caixa marcada). */
+export function addressToSave(fields) {
+  if (fields.fulfillment !== 'delivery' || fields.addressChoice !== NEW_ADDRESS || fields.saveAddress !== 'on') return null;
+  return {
+    street: text(fields, 'street'),
+    number: text(fields, 'number'),
+    district: text(fields, 'district'),
+    reference: text(fields, 'reference'),
+  };
+}
+
 function required(fields, key, min, max, message) {
   const value = text(fields, key);
   if (value.length < min || value.length > max) throw new FieldError(key, message);

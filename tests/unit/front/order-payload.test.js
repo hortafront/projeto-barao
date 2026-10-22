@@ -133,3 +133,59 @@ test('createOrderSubmitter compartilhado: segundo submit devolve a mesma promess
   await first;
   assert.equal(submitter.pending, false);
 });
+
+// ---------- endereços salvos (conta do cliente) ----------
+const {
+  NEW_ADDRESS, defaultAddressChoice, applyAddressChoice, addressToSave, prefillFromMe, addressLabel,
+} = await import('../../../public/js/order-payload.js');
+
+const addrs = [
+  { id: 'a', label: 'Casa', street: 'Rua A', number: '1', district: 'Centro', reference: null, isDefault: false },
+  { id: 'b', label: null, street: 'Rua B', number: '22', district: 'Aldeota', reference: 'Portão azul', isDefault: true },
+];
+const delivery = (extra = {}) => ({
+  name: 'Ana', phone: '(85) 99999-9999', fulfillment: 'delivery', payment: 'pix', ...extra,
+});
+
+test('defaultAddressChoice devolve o padrão ou "new"', () => {
+  assert.equal(NEW_ADDRESS, 'new');
+  assert.equal(defaultAddressChoice(addrs), 'b');
+  assert.equal(defaultAddressChoice([]), 'new');
+  assert.equal(defaultAddressChoice(undefined), 'new');
+});
+
+test('endereço salvo vence os inputs e sai sem id/label/isDefault', () => {
+  const fields = applyAddressChoice(delivery({ addressChoice: 'b', street: 'lixo' }), addrs);
+  const payload = buildOrderPayload(fields, items, 0);
+  assert.deepEqual(payload.address, { street: 'Rua B', number: '22', district: 'Aldeota', reference: 'Portão azul' });
+  assert.deepEqual(buildOrderPayload(applyAddressChoice(delivery({ addressChoice: 'a' }), addrs), items, 0).address,
+    { street: 'Rua A', number: '1', district: 'Centro', reference: '' });
+});
+
+test('escolha desconhecida vira FieldError addressChoice', () => {
+  assert.throws(() => applyAddressChoice(delivery({ addressChoice: 'zzz' }), addrs),
+    (e) => e instanceof FieldError && e.field === 'addressChoice');
+});
+
+test('"new" mantém os inputs; retirada ignora a escolha', () => {
+  const typed = delivery({ addressChoice: 'new', street: 'Rua N', number: '9', district: 'Bairro N', reference: '' });
+  assert.deepEqual(applyAddressChoice(typed, addrs), typed);
+  const pickup = { name: 'Ana', phone: '(85) 99999-9999', fulfillment: 'pickup', payment: 'pix', addressChoice: 'zzz' };
+  const payload = buildOrderPayload(applyAddressChoice(pickup, addrs), items, 0);
+  assert.equal('address' in payload, false);
+});
+
+test('addressToSave só com "new" + saveAddress + entrega', () => {
+  const f = delivery({ addressChoice: 'new', saveAddress: 'on', street: ' Rua N ', number: '9', district: 'B N', reference: '' });
+  assert.deepEqual(addressToSave(f), { street: 'Rua N', number: '9', district: 'B N', reference: '' });
+  assert.equal(addressToSave({ ...f, saveAddress: undefined }), null);
+  assert.equal(addressToSave({ ...f, addressChoice: 'b' }), null);
+  assert.equal(addressToSave({ ...f, fulfillment: 'pickup' }), null);
+});
+
+test('prefillFromMe e addressLabel', () => {
+  assert.deepEqual(prefillFromMe({ profile: { name: 'Ana', phone: '85999999999' } }), { name: 'Ana', phone: '(85) 99999-9999' });
+  assert.deepEqual(prefillFromMe({ profile: null }), { name: '', phone: '' });
+  assert.equal(addressLabel({ label: 'Casa', street: 'Rua X', number: '123', district: 'Bairro Y' }), 'Casa — Rua X, 123');
+  assert.equal(addressLabel({ label: null, street: 'Rua X', number: '123', district: 'Bairro Y' }), 'Rua X, 123 — Bairro Y');
+});
