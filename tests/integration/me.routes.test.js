@@ -131,6 +131,42 @@ test('e-mail de ADMIN_EMAILS também é cliente', async () => {
   assert.equal(res.body.profile, null);
 });
 
+test('DELETE /api/me recusa a conta de administrador (403) e ela continua existindo', async () => {
+  const admin = { id: '00000000-0000-4000-8000-0000000000d1', email: 'Dono@Barao.com' };
+  const { app, db } = makeApp({ users: { 'token-dono': admin } });
+  const del = await request(app).delete('/api/me').set({ Authorization: 'Bearer token-dono' });
+  assert.equal(del.status, 403);
+  assert.equal(del.body.error.code, 'FORBIDDEN');
+  assert.equal(del.body.error.message, 'A conta do administrador não pode ser excluída por aqui.');
+  assert.ok(db.state.users['token-dono'], 'usuário admin continua no Auth');
+  const still = await request(app).get('/api/me').set({ Authorization: 'Bearer token-dono' });
+  assert.equal(still.status, 200);
+});
+
+test('DELETE /api/me de cliente comum segue 204', async () => {
+  const { app } = makeApp();
+  const del = await request(app).delete('/api/me').set(bearer(CUSTOMER_B));
+  assert.equal(del.status, 204);
+});
+
+test('cliente comum (fora de ADMIN_EMAILS) recebe 403 em rota /api/admin', async () => {
+  const { app } = makeApp();
+  const res = await request(app).get('/api/admin/orders').set(bearer(CUSTOMER_A));
+  assert.equal(res.status, 403);
+  assert.equal(res.body.error.code, 'FORBIDDEN');
+});
+
+test('rate limit da conta: a 301ª requisição em /api/me → 429 RATE_LIMITED', async () => {
+  const { app } = makeApp({ options: { rateLimit: true } });
+  for (let i = 0; i < 300; i += 1) {
+    const res = await request(app).get('/api/me');
+    assert.equal(res.status, 401);
+  }
+  const res = await request(app).get('/api/me');
+  assert.equal(res.status, 429);
+  assert.equal(res.body.error.code, 'RATE_LIMITED');
+});
+
 test('erros nunca expõem stack', async () => {
   const { app } = makeApp();
   const res = await request(app).put('/api/me/addresses/abc').set(bearer(CUSTOMER_A)).send({});
