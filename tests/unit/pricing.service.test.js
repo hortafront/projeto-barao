@@ -136,3 +136,94 @@ describe('assertChangeIsValid', () => {
     assert.doesNotThrow(() => assertChangeIsValid({ method: 'pix', changeForCents: 100 }, 5949));
   });
 });
+
+describe('priceOrderItems — combo do dia', async () => {
+  const { createFakeDb } = await import('../helpers/fakeDb.js');
+  const { seedCombo } = await import('../helpers/testkit.js');
+  const productsById = () => new Map(seedProducts().map((p) => [p.id, p]));
+  const db = createFakeDb();
+  const combo = await seedCombo(db);
+  const opts = (extra = {}) => ({ combosById: new Map([[combo.id, combo]]), weekday: 4, ...extra });
+  const comboItem = (slots, extra = {}) => ({ kind: 'combo', comboId: combo.id, quantity: 1, notes: '', slots, ...extra });
+  const pz = (flavorIds, addonIds = []) => ({ kind: 'pizza', flavorIds, addonIds });
+  const dk = (productId = IDS.coca1l) => ({ kind: 'drink', productId });
+  const fails = (items, o, code, status, path, message) => assert.throws(
+    () => priceOrderItems(items, productsById(), o),
+    (err) => {
+      assert.equal(err.code, code);
+      assert.equal(err.status, status);
+      if (path) assert.equal(err.details[0].path, path);
+      if (message) assert.equal(err.message, message);
+      return true;
+    });
+
+  it('collectProductIds inclui produtos dos slots', () => {
+    const ids = collectProductIds([comboItem([pz([IDS.calabresa], [IDS.bordaCatupiry]), dk()])]);
+    assert.deepEqual(ids.sort(), [IDS.calabresa, IDS.bordaCatupiry, IDS.coca1l].sort());
+  });
+
+  it('combo válido: preço do combo + adicionais, snapshot por vaga', () => {
+    const [item] = priceOrderItems([comboItem([pz([IDS.calabresa, IDS.mussarela], [IDS.bordaCatupiry]), dk()], { quantity: 2 })], productsById(), opts());
+    assert.equal(item.kind, 'combo');
+    assert.equal(item.comboId, combo.id);
+    assert.equal(item.description, 'Combo Clássico');
+    assert.equal(item.baseUnitCents, 3690);
+    assert.equal(item.unitPriceCents, 4140);
+    assert.equal(item.lineTotalCents, 8280);
+    assert.equal(item.flavorNames, null);
+    assert.deepEqual(item.choices, [
+      { label: 'Escolha sua pizza', kind: 'pizza', description: 'Pizza meio a meio: Calabresa / Mussarela', addons: [{ name: 'Borda Recheada com Catupiry', priceCents: 450 }] },
+      { label: 'Escolha o refrigerante', kind: 'drink', description: 'Coca-Cola 1 Litro', addons: [] },
+    ]);
+    assert.deepEqual(item.addons, [{ name: 'Borda Recheada com Catupiry', priceCents: 450 }]);
+    assert.deepEqual(item.productIds, [IDS.calabresa, IDS.mussarela, IDS.bordaCatupiry, IDS.coca1l]);
+  });
+
+  it('pizza inteira usa "Pizza X"', () => {
+    const [item] = priceOrderItems([comboItem([pz([IDS.mista]), dk()])], productsById(), opts());
+    assert.equal(item.choices[0].description, 'Pizza Mista');
+    assert.equal(item.unitPriceCents, 3690);
+  });
+
+  it('combo inexistente → 409', () => {
+    fails([comboItem([pz([IDS.mista]), dk()])], { combosById: new Map(), weekday: 4 }, 'PRODUCT_UNAVAILABLE', 409, null, 'Este combo não está mais disponível.');
+  });
+
+  it('combo esgotado ou fora do dia → 409 "O {nome} não está disponível hoje."', () => {
+    const msg = 'O Combo Clássico não está disponível hoje.';
+    fails([comboItem([pz([IDS.mista]), dk()])], opts({ weekday: 5 }), 'PRODUCT_UNAVAILABLE', 409, null, msg);
+    fails([comboItem([pz([IDS.mista]), dk()])], { combosById: new Map([[combo.id, { ...combo, available: false }]]), weekday: 4 }, 'PRODUCT_UNAVAILABLE', 409, null, msg);
+  });
+
+  it('vagas diferentes (quantidade ou kind) → 400 items.0.slots', () => {
+    fails([comboItem([pz([IDS.mista])])], opts(), 'VALIDATION_ERROR', 400, 'items.0.slots');
+    fails([comboItem([dk(), pz([IDS.mista])])], opts(), 'VALIDATION_ERROR', 400, 'items.0.slots');
+  });
+
+  it('produto fora da vaga → 400; sabor repetido → 400', () => {
+    fails([comboItem([pz([IDS.frango]), dk()])], opts(), 'VALIDATION_ERROR', 400, 'items.0.slots.0.flavorIds');
+    fails([comboItem([pz([IDS.mista]), dk(IDS.guarana1l)])], opts(), 'VALIDATION_ERROR', 400, 'items.0.slots.1.productId');
+    fails([comboItem([pz([IDS.mista, IDS.mista]), dk()])], opts(), 'VALIDATION_ERROR', 400, 'items.0.slots.0.flavorIds');
+  });
+
+  it('produto esgotado → 409 agregado', () => {
+    const map = productsById();
+    map.set(IDS.mista, { ...map.get(IDS.mista), available: false });
+    assert.throws(() => priceOrderItems([comboItem([pz([IDS.mista]), dk()])], map, opts()),
+      (err) => err.code === 'PRODUCT_UNAVAILABLE' && err.status === 409 && /Mista acabou/.test(err.message));
+  });
+
+  it('uma borda por pizza vale por vaga', async () => {
+    const c2 = await seedCombo(createFakeDb(), {
+      slots: [
+        { label: 'Pizza 1', kind: 'pizza', productIds: [IDS.mista] },
+        { label: 'Pizza 2', kind: 'pizza', productIds: [IDS.mussarela] },
+      ],
+    });
+    const o = { combosById: new Map([[c2.id, c2]]), weekday: 4 };
+    const mk = (a, b) => ({ kind: 'combo', comboId: c2.id, quantity: 1, slots: [pz([IDS.mista], a), pz([IDS.mussarela], b)] });
+    const [item] = priceOrderItems([mk([IDS.bordaCatupiry], [IDS.bordaChocolate])], productsById(), o);
+    assert.equal(item.unitPriceCents, 3690 + 450 + 999);
+    fails([mk([IDS.bordaCatupiry, IDS.bordaChocolate], [])], o, 'VALIDATION_ERROR', 400, 'items.0.slots.0.addonIds', 'Escolha apenas uma borda por pizza.');
+  });
+});
