@@ -189,3 +189,12 @@ test('prefillFromMe e addressLabel', () => {
   assert.equal(addressLabel({ label: 'Casa', street: 'Rua X', number: '123', district: 'Bairro Y' }), 'Casa — Rua X, 123');
   assert.equal(addressLabel({ label: null, street: 'Rua X', number: '123', district: 'Bairro Y' }), 'Rua X, 123 — Bairro Y');
 });
+
+test('canSaveAnotherAddress respeita o limite de 10 endereços', async () => {
+  const { MAX_SAVED_ADDRESSES, canSaveAnotherAddress } = await import('../../../public/js/order-payload.js');
+  assert.equal(MAX_SAVED_ADDRESSES, 10);
+  assert.equal(canSaveAnotherAddress([]), true);
+  assert.equal(canSaveAnotherAddress(undefined), true);
+  assert.equal(canSaveAnotherAddress(new Array(9).fill({})), true);
+  assert.equal(canSaveAnotherAddress(new Array(10).fill({})), false);
+});

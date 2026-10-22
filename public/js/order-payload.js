@@ -58,6 +58,13 @@ export function applyAddressChoice(fields, addresses) {
   };
 }
 
+/** Limite de endereços salvos por conta (espelha MAX_ADDRESSES do servidor; o servidor segue sendo a autoridade). */
+export const MAX_SAVED_ADDRESSES = 10;
+
+export function canSaveAnotherAddress(addresses) {
+  return (addresses?.length ?? 0) < MAX_SAVED_ADDRESSES;
+}
+
 /** Endereço digitado para guardar na conta (só entrega + "Usar outro endereço" + caixa marcada). */
 export function addressToSave(fields) {
   if (fields.fulfillment !== 'delivery' || fields.addressChoice !== NEW_ADDRESS || fields.saveAddress !== 'on') return null;
