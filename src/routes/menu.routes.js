@@ -1,5 +1,6 @@
 import express from 'express';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { getTodayPublicCombo } from '../services/combo.service.js';
 
 /** Projeção pública do produto (sem categoryId/sortOrder). addonGroup: 'borda' | null (front monta radio por grupo). */
 const toPublicProduct = ({ id, kind, name, description, priceCents, imageUrl, available, addonGroup }) =>
@@ -7,10 +8,12 @@ const toPublicProduct = ({ id, kind, name, description, priceCents, imageUrl, av
 
 const bySortOrderThenName = (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'pt-BR');
 
-export function menuRoutes({ db }) {
+export function menuRoutes({ db, options }) {
   const router = express.Router();
   router.get('/', asyncHandler(async (req, res) => {
     const categories = await db.getMenu();
+    const productsById = new Map(categories.flatMap((c) => c.products).map((p) => [p.id, p]));
+    const combo = await getTodayPublicCombo(db, { now: options.now(), timeZone: options.timeZone, productsById });
     res.set('Cache-Control', 'public, max-age=30');
     res.json({
       categories: categories
@@ -20,6 +23,7 @@ export function menuRoutes({ db }) {
           name: c.name,
           products: [...c.products].sort(bySortOrderThenName).map(toPublicProduct),
         })),
+      combo,
     });
   }));
   return router;
