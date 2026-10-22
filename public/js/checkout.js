@@ -3,7 +3,9 @@ import { createOrder } from './api.js';
 import { $, el, openDialog, render } from './dom.js';
 import { lineId } from './cart.js';
 import {
-  FieldError, buildOrderPayload, createOrderSubmitter, fieldErrorsFromDetails, maskPhone,
+  FieldError, MAX_SAVED_ADDRESSES, NEW_ADDRESS, addressLabel, addressToSave, applyAddressChoice, buildOrderPayload,
+  canSaveAnotherAddress, createOrderSubmitter,
+  defaultAddressChoice, fieldErrorsFromDetails, maskPhone, prefillFromMe,
 } from './order-payload.js';
 import { formatBRL } from '/shared/money.js';
 
@@ -12,9 +14,10 @@ const DELIVERY_NOTICE = 'Taxa de entrega a combinar pelo WhatsApp';
 const EMPTY_TEXT = 'Seu carrinho está vazio. Bateu a fome? Escolha uma pizza.';
 const CLOSED_TEXT = 'Loja fechada no momento. Você pode montar o pedido, mas só consegue finalizar quando abrirmos.';
 const BLOCKED_TEXT = 'Alguns itens ficaram indisponíveis. Remova-os do carrinho para continuar.';
-const FIELD_ORDER = ['name', 'phone', 'fulfillment', 'street', 'number', 'district', 'reference', 'payment', 'changeFor', 'notes'];
+const SESSION_TEXT = 'Sua sessão expirou. Entre de novo e toque em Enviar.';
+const FIELD_ORDER = ['name', 'phone', 'fulfillment', 'addressChoice', 'street', 'number', 'district', 'reference', 'payment', 'changeFor', 'notes'];
 
-export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onStoreClosed } = {}) {
+export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onStoreClosed, account } = {}) {
   const bar = $('#cart-bar');
   const barCount = $('#cart-count');
   const barTotal = $('#cart-total');
@@ -28,9 +31,10 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
   let afterDrawerClose = null;
   let focusKey = null;
   let submitting = false;
-  let ctx = null; // contexto do envio em andamento: { formError, method, delivery }
+  let me = null; // conta (perfil + endereços) usada no formulário aberto
+  let ctx = null; // contexto do envio em andamento: { formError, method, delivery, save }
   const submitter = createOrderSubmitter({
-    createOrder,
+    createOrder: (payload) => account.withAuth((token) => createOrder(payload, { token })),
     onSuccess: (data) => onCreated(data),
     onError: (error) => onFailed(error),
   });
@@ -116,7 +120,7 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
             el('span', { class: 'price' }, formatBRL(subtotal()))),
           el('button', {
             type: 'button', class: 'btn btn--primary btn--block', disabled: !canFinish,
-            onclick: () => { afterDrawerClose = openCheckout; closeDrawerFn?.(); },
+            onclick: () => { afterDrawerClose = () => account.gate.run((current) => openCheckout(current)); closeDrawerFn?.(); },
           }, 'Finalizar pedido'))));
     }
     if (focusKey) {
@@ -143,10 +147,10 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
   }
 
   // ---------- checkout ----------
-  function openCheckout() {
+  function openCheckout(current) {
     if (checkoutDialog.open || cart.count() === 0) return;
     drawerNotice = '';
-    if (!submitting) paintCheckout(); // envio em andamento: reabre o mesmo formulário, sem novo POST
+    if (!submitting) { me = current; paintCheckout(); } // envio em andamento: reabre o mesmo formulário, sem novo POST
     closeCheckoutFn = openDialog(checkoutDialog, {
       onClose: () => { closeCheckoutFn = null; },
       initialFocus: checkoutDialog.querySelector('input'),
@@ -208,6 +212,7 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
     fieldRefs.clear();
     const total = subtotal();
     const formError = el('p', { class: 'notice notice--error', role: 'alert', hidden: true });
+    const saved = me?.addresses ?? [];
     const pixNote = el('p', { class: 'notice', hidden: true }, PIX_NOTICE);
     const deliveryNote = el('p', { class: 'notice', hidden: true }, DELIVERY_NOTICE);
     const addressBox = el('div', { class: 'address-box', hidden: true },
@@ -215,7 +220,18 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
       el('div', { class: 'field-row' },
         field('number', 'Número', el('input', { id: 'f-number', name: 'number', type: 'text', maxlength: 10, autocomplete: 'off' })),
         field('district', 'Bairro', el('input', { id: 'f-district', name: 'district', type: 'text', maxlength: 60, autocomplete: 'address-level3' }))),
-      field('reference', 'Referência (opcional)', el('input', { id: 'f-reference', name: 'reference', type: 'text', maxlength: 120, autocomplete: 'off' })));
+      field('reference', 'Referência (opcional)', el('input', { id: 'f-reference', name: 'reference', type: 'text', maxlength: 120, autocomplete: 'off' })),
+      canSaveAnotherAddress(saved)
+        ? el('label', { class: 'check' },
+          el('input', { type: 'checkbox', name: 'saveAddress' }),
+          el('span', {}, 'Salvar este endereço'))
+        : el('p', { class: 'notice' }, `Você já tem ${MAX_SAVED_ADDRESSES} endereços salvos. Apague um na sua conta para salvar outro.`));
+    const addressChoice = saved.length > 0
+      ? radioGroup('addressChoice', 'Endereço de entrega',
+        [...saved.map((a) => [a.id, addressLabel(a)]), [NEW_ADDRESS, 'Usar outro endereço']], defaultAddressChoice(saved))
+      : el('input', { type: 'hidden', name: 'addressChoice', value: NEW_ADDRESS });
+    addressChoice.hidden = true;
+    addressChoice.classList?.add('address-choice');
     const changeBox = el('div', { class: 'change-box', hidden: true },
       field('changeFor', 'Troco para (opcional)', el('input', { id: 'f-changeFor', name: 'changeFor', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: 'Ex.: 100' })));
 
@@ -225,6 +241,7 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
       field('name', 'Nome', el('input', { id: 'f-name', name: 'name', type: 'text', required: true, minlength: 2, maxlength: 60, autocomplete: 'name' })),
       field('phone', 'Telefone (WhatsApp)', el('input', { id: 'f-phone', name: 'phone', type: 'tel', inputmode: 'numeric', required: true, autocomplete: 'tel-national', placeholder: '(85) 99999-9999' })),
       radioGroup('fulfillment', 'Como prefere receber?', [['delivery', 'Entrega'], ['pickup', 'Retirada']], 'delivery'),
+      addressChoice,
       addressBox,
       deliveryNote,
       radioGroup('payment', 'Pagamento', [['pix', 'Pix'], ['cash', 'Dinheiro'], ['card', 'Cartão (maquininha)']], 'pix'),
@@ -239,13 +256,17 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
       const data = new FormData(form);
       const delivery = data.get('fulfillment') === 'delivery';
       const method = data.get('payment');
-      addressBox.hidden = !delivery;
+      addressChoice.hidden = !delivery || saved.length === 0;
+      addressBox.hidden = !delivery || (data.get('addressChoice') ?? NEW_ADDRESS) !== NEW_ADDRESS;
       deliveryNote.hidden = !delivery;
       pixNote.hidden = method !== 'pix';
       changeBox.hidden = method !== 'cash';
     };
     form.addEventListener('change', sync);
     form.elements.phone.addEventListener('input', (e) => { e.target.value = maskPhone(e.target.value); });
+    const prefill = prefillFromMe(me); // editáveis só neste pedido; o perfil não muda
+    form.elements.name.value = prefill.name;
+    form.elements.phone.value = prefill.phone;
     sync();
 
     form.addEventListener('submit', async (event) => {
@@ -255,7 +276,7 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
       const fields = Object.fromEntries(new FormData(form).entries());
       let payload;
       try {
-        payload = buildOrderPayload(fields, cart.toOrderItems(), subtotal());
+        payload = buildOrderPayload(applyAddressChoice(fields, me?.addresses), cart.toOrderItems(), subtotal());
       } catch (err) {
         if (!(err instanceof FieldError)) throw err;
         showErrors({ [err.field]: err.message });
@@ -263,7 +284,7 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
       }
       showErrors({});
       submitting = true;
-      ctx = { formError, method: fields.payment, delivery: fields.fulfillment === 'delivery' };
+      ctx = { formError, method: fields.payment, delivery: fields.fulfillment === 'delivery', save: addressToSave(fields) };
       submitBtn.disabled = true;
       submitBtn.textContent = 'Enviando…';
       try {
@@ -306,9 +327,11 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
   }
 
   function onCreated(data) {
-    const { method, delivery } = ctx;
+    const { method, delivery, save } = ctx;
     ensureCheckoutOpen();
     cart.clear(); // dispara refresh via subscribe
+    // Guardar o endereço é um extra: roda em segundo plano e uma falha não afeta o pedido.
+    if (save) Promise.resolve().then(() => account.customerApi('/api/me/addresses', { method: 'POST', body: save })).catch(() => {});
     const link = el('a', { class: 'btn btn--primary btn--block', href: data.whatsappUrl, rel: 'noopener' }, 'Abrir WhatsApp');
     render(checkoutDialog, el('div', { class: 'sheet sheet--confirm' },
       el('div', { class: 'sheet__body confirm' },
@@ -335,8 +358,30 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
     }
   }
 
+  // Após novo login: se for OUTRA conta, troca `me` e repinta o formulário (senão iria o endereço salvo da conta antiga).
+  async function reloginThenSync() {
+    try {
+      if (!(await account.openLogin())) return;
+      const fresh = await account.loadMe();
+      if (!fresh || fresh.email === me?.email) return; // mesma conta: formulário intacto
+      me = fresh;
+      if (!submitting && checkoutDialog.open) paintCheckout();
+    } catch { /* o cliente pode tentar de novo */ }
+  }
+
   async function handleFailure(error, formError) {
     const say = (text) => { formError.textContent = text; formError.hidden = false; formError.scrollIntoView?.({ block: 'nearest' }); };
+    if (error.code === 'UNAUTHORIZED') {
+      say(SESSION_TEXT);
+      reloginThenSync();
+      return;
+    }
+    if (error.code === 'VALIDATION_ERROR' && Array.isArray(error.details) && error.details.some((d) => d.path === 'profile')) {
+      say(error.message || 'Complete seu cadastro e toque em Enviar.');
+      const updated = await account.openCompleteProfile(me);
+      if (updated) me = updated;
+      return;
+    }
     if (error.code === 'VALIDATION_ERROR') {
       const errors = fieldErrorsFromDetails(error.details);
       const shown = showErrors(errors);

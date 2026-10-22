@@ -2,9 +2,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
-import { makeApp, validOrder, IDS } from '../helpers/testkit.js';
+import { makeApp, validOrder, IDS, CUSTOMER_A, CUSTOMER_NEW, postOrder } from '../helpers/testkit.js';
 
-const post = (app, body) => request(app).post('/api/orders').send(body);
+const post = (app, body) => postOrder(app, body);
 
 describe('POST /api/orders — caminho feliz', () => {
   it('201 com código, subtotal recalculado, mensagem e link do WhatsApp; salva o pedido', async () => {
@@ -277,5 +277,49 @@ describe('POST /api/orders — logs e texto hostil', () => {
     const w = String(warn.mock.calls[0].arguments[0]);
     assert.equal(JSON.parse(w).msg, 'whatsapp_url_long');
     assert.ok(!w.includes('João') && !w.includes('85999999999'));
+  });
+});
+
+describe('POST /api/orders — exige cliente logado', () => {
+  it('sem token → 401 UNAUTHORIZED e nada salvo', async () => {
+    const { app, db } = makeApp();
+    const res = await request(app).post('/api/orders').send(validOrder());
+    assert.equal(res.status, 401);
+    assert.equal(res.body.error.code, 'UNAUTHORIZED');
+    assert.equal(db.state.orders.length, 0);
+  });
+
+  it('token desconhecido (sessão expirada) → 401 e nada salvo', async () => {
+    const { app, db } = makeApp();
+    const res = await request(app).post('/api/orders').set('Authorization', 'Bearer token-expirado').send(validOrder());
+    assert.equal(res.status, 401);
+    assert.equal(res.body.error.code, 'UNAUTHORIZED');
+    assert.equal(db.state.orders.length, 0);
+  });
+
+  it('com cliente A → 201 e grava customerId; nome/telefone são os do body', async () => {
+    const { app, db } = makeApp();
+    const res = await post(app, validOrder({ customer: { name: 'Maria Souza', phone: '85911112222' } }));
+    assert.equal(res.status, 201);
+    assert.equal(db.state.orders[0].customerId, CUSTOMER_A.id);
+    assert.equal(db.state.orders[0].customer.name, 'Maria Souza');
+    assert.equal(db.state.orders[0].customer.phone, '85911112222');
+  });
+
+  it('cliente sem perfil → 400 VALIDATION_ERROR (profile) e nada salvo', async () => {
+    const { app, db } = makeApp();
+    const res = await postOrder(app, validOrder(), { customer: CUSTOMER_NEW });
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error.code, 'VALIDATION_ERROR');
+    assert.equal(res.body.error.message, 'Complete seu perfil antes de fazer o pedido.');
+    assert.equal(res.body.error.details[0].path, 'profile');
+    assert.equal(db.state.orders.length, 0);
+  });
+
+  it('loja fechada + cliente A → 409 STORE_CLOSED (antes da checagem de perfil)', async () => {
+    const { app } = makeApp({ settings: { storeOverride: 'closed' } });
+    const res = await postOrder(app, validOrder(), { customer: CUSTOMER_NEW });
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error.code, 'STORE_CLOSED');
   });
 });

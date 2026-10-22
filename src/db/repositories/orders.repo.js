@@ -6,6 +6,7 @@ export function createOrdersRepo(supabase) {
     async createOrder(draft) {
       const a = draft.address;
       const payload = {
+        customer_id: draft.customerId ?? null, // pedido de cliente logado; null = anônimo
         customer_name: draft.customer.name,
         customer_phone: draft.customer.phone,
         fulfillment: draft.fulfillment,

@@ -1,8 +1,12 @@
 // Orquestrador do front do cliente: carrega dados, liga módulos. Sem regra de negócio.
+import { initAccount } from './account.js';
 import { getMenu, getStatus } from './api.js';
+import * as auth from './auth.js';
+import { initAuthDialog } from './auth-dialog.js';
 import { createCart } from './cart.js';
 import { initCheckout } from './checkout.js';
 import { $ } from './dom.js';
+import { createLoginGate } from './login-gate.js';
 import { renderMenu, renderMenuError, renderMenuLoading, renderStoreStatus } from './menu.js';
 import { openPizzaModal } from './product-modal.js';
 
@@ -14,6 +18,7 @@ const tabsRoot = $('#category-tabs');
 const statusEls = { badge: $('#store-status'), banner: $('#status-banner') };
 const toastEl = $('#toast');
 const pizzaDialog = $('#product-modal');
+const accountButton = $('#account-button');
 
 const cart = createCart({ storage: globalThis.localStorage });
 
@@ -29,6 +34,70 @@ function toast(text) {
   toastEl.classList.add('is-visible');
   toastTimer = setTimeout(() => toastEl.classList.remove('is-visible'), TOAST_MS);
 }
+
+// ---------- conta do cliente ----------
+// supabase-js só é baixado quando há sessão salva ou o visitante tenta entrar.
+const authDialog = initAuthDialog({ dialog: $('#auth-modal'), auth, toast });
+let watching = false;
+
+function paintAccountButton(session) {
+  const logged = Boolean(session);
+  accountButton.textContent = logged ? 'Minha conta' : 'Entrar';
+  accountButton.dataset.logged = String(logged);
+}
+
+/** Idempotente: assina as mudanças de sessão uma única vez. */
+function watchAuth() {
+  if (watching) return;
+  watching = true;
+  auth.onAuthChange((_event, session) => paintAccountButton(session)).catch(() => { watching = false; });
+}
+
+async function openLogin(tab) {
+  watchAuth();
+  const ok = await authDialog.openLogin(tab);
+  if (ok) paintAccountButton(await auth.getSession());
+  return ok;
+}
+
+async function loadMe() {
+  const me = await authDialog.loadMe();
+  if (!me) toast('Não foi possível carregar sua conta. Verifique sua internet e tente de novo.');
+  return me;
+}
+
+const gate = createLoginGate({
+  getSession: () => (auth.hasStoredSession() ? auth.getSession() : null),
+  loadMe,
+  openLogin: () => openLogin(),
+  openCompleteProfile: authDialog.openCompleteProfile,
+});
+// Entregue ao checkout (T11) e à tela "Minha conta" (T12).
+export const account = {
+  gate,
+  withAuth: auth.withAuth,
+  customerApi: auth.customerApi,
+  openLogin,
+  openCompleteProfile: authDialog.openCompleteProfile,
+  loadMe,
+};
+
+const accountUi = initAccount({ dialog: $('#account-modal'), account, auth, toast });
+
+accountButton.addEventListener('click', () => {
+  if (accountButton.dataset.logged === 'true') accountUi.open();
+  else account.openLogin();
+});
+if (auth.hasStoredSession()) {
+  watchAuth();
+  auth.getSession().then(paintAccountButton);
+} else {
+  paintAccountButton(null);
+}
+auth.onSessionLost(() => {
+  paintAccountButton(null);
+  toast('Sua sessão expirou. Entre novamente.');
+});
 
 function indexProducts(data) {
   const map = new Map();
@@ -97,6 +166,7 @@ async function load({ fresh = false } = {}) {
       getStatus,
       reloadMenu: () => load({ fresh: true }),
       onStoreClosed: refreshStatus,
+      account,
     });
   }
   checkout.refresh();

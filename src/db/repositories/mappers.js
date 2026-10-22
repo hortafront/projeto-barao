@@ -13,6 +13,16 @@ export function toProduct(r) {
   };
 }
 
+export const ADDRESS_COLUMNS =
+  'id, label, street, number, district, reference, is_default, created_at, updated_at';
+
+export function toAddress(r) {
+  return {
+    id: r.id, label: r.label ?? null, street: r.street, number: r.number, district: r.district,
+    reference: r.reference ?? null, isDefault: r.is_default, createdAt: r.created_at, updatedAt: r.updated_at,
+  };
+}
+
 export function toOrder(r) {
   return {
     id: r.id, code: r.code, status: r.status, createdAt: r.created_at,

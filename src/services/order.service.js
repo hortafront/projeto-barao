@@ -4,7 +4,7 @@ import { getStoreStatus, describeNextOpening } from './hours.service.js';
 import { collectProductIds, priceOrderItems, assertChangeIsValid } from './pricing.service.js';
 import { buildOrderMessage, buildWhatsAppUrl } from './whatsapp.service.js';
 
-export async function createOrder(input, { db, now = new Date(), timeZone = 'America/Fortaleza' }) {
+export async function createOrder(input, { db, now = new Date(), timeZone = 'America/Fortaleza', customerId }) {
   const [hours, settings] = await Promise.all([db.getHours(), db.getSettings()]);
   const status = getStoreStatus(now, hours, settings.storeOverride, timeZone);
   if (!status.open) {
@@ -16,6 +16,12 @@ export async function createOrder(input, { db, now = new Date(), timeZone = 'Ame
     throw new AppError('STORE_CLOSED', 409, 'Estamos fechados no momento.');
   }
 
+  const profile = await db.getCustomer(customerId);
+  if (!profile) {
+    const msg = 'Complete seu perfil antes de fazer o pedido.';
+    throw new AppError('VALIDATION_ERROR', 400, msg, [{ path: 'profile', message: msg }]);
+  }
+
   const products = await db.getProductsByIds(collectProductIds(input.items));
   const pricedItems = priceOrderItems(input.items, new Map(products.map((p) => [p.id, p])));
   const subtotalCents = calcOrderSubtotalCents(pricedItems);
@@ -25,6 +31,7 @@ export async function createOrder(input, { db, now = new Date(), timeZone = 'Ame
   assertChangeIsValid(payment, subtotalCents);
 
   const draft = {
+    customerId,
     customer: input.customer,
     fulfillment: input.fulfillment,
     address: input.fulfillment === 'delivery' ? input.address : null,

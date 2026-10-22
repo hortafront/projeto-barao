@@ -10,6 +10,11 @@ export function ordersRateLimit({ enabled = true } = {}) {
   return rateLimit({ windowMs: 10 * 60 * 1000, limit: 10, standardHeaders: 'draft-7', legacyHeaders: false, handler: toAppError });
 }
 
+export function accountRateLimit({ enabled = true } = {}) {
+  if (!enabled) return passthrough;
+  return rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-7', legacyHeaders: false, handler: toAppError });
+}
+
 export function adminRateLimit({ enabled = true } = {}) {
   if (!enabled) return passthrough;
   return rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-7', legacyHeaders: false, handler: toAppError });

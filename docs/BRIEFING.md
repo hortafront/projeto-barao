@@ -189,7 +189,7 @@ Exemplos: "Bateu a fome? Monte sua pizza.", "Ops, essa acabou por hoje.", "Estam
 - Pagamento online (Pix automático, cartão no site).
 - Cálculo automático de frete por bairro/distância.
 - Cupons e promoções.
-- Login/cadastro de cliente e histórico do cliente.
+- Histórico de pedidos do cliente na conta (a conta com login, perfil e endereços salvos já existe; ver `docs/superpowers/specs/2026-10-21-conta-cliente-design.md`).
 - Aplicativo nativo.
 - Impressão automática de pedidos na cozinha.
 - Acompanhamento do pedido em tempo real pelo cliente.

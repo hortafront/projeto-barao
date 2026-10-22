@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/css/menu.css">
   <link rel="stylesheet" href="/css/cart.css">
+  <link rel="stylesheet" href="/css/account.css">
   <link rel="modulepreload" href="/shared/pricing.js">
   <script type="module" src="/js/app.js"></script>
 </head>
@@ -40,7 +41,10 @@
 
   <header class="site-header">
     <span class="site-header__brand">Pizzaria Barão</span>
-    <span class="badge status-badge" id="store-status" role="status">Verificando…</span>
+    <div class="site-header__actions">
+      <button type="button" id="account-button" class="header-account">Entrar</button>
+      <span class="badge status-badge" id="store-status" role="status">Verificando…</span>
+    </div>
   </header>
 
   <section class="hero" aria-labelledby="hero-title">
@@ -75,6 +79,8 @@
   <dialog id="product-modal" class="modal" aria-labelledby="product-modal-title"></dialog>
   <dialog id="cart-drawer" class="drawer" aria-labelledby="cart-title"></dialog>
   <dialog id="checkout-modal" class="modal modal--full" aria-labelledby="checkout-title"></dialog>
+  <dialog id="auth-modal" class="modal" aria-labelledby="auth-title"></dialog>
+  <dialog id="account-modal" class="modal modal--full" aria-labelledby="account-title"></dialog>
   <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 </body>
 </html>

@@ -164,6 +164,18 @@
 .radio:has(input:checked) { border-color: var(--color-accent); box-shadow: var(--frame-inset); }
 .radio input { width: var(--space-4); height: var(--space-4); accent-color: var(--color-accent); }
 
+/* ---------- Endereços salvos ---------- */
+.address-choice .radio-row { flex-direction: column; flex-wrap: nowrap; }
+.address-choice .radio { display: flex; width: 100%; padding-block: var(--space-2); }
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-min);
+  cursor: pointer;
+}
+.check input { width: var(--space-4); height: var(--space-4); accent-color: var(--color-accent); }
+
 /* ---------- Confirmação ---------- */
 .confirm { text-align: center; justify-items: stretch; padding-block: var(--space-6); }
 .confirm__script { font-family: var(--font-script); font-size: var(--fs-2xl); color: var(--color-title); }

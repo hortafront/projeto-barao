@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
-import { makeApp } from '../helpers/testkit.js';
+import { makeApp, bearer } from '../helpers/testkit.js';
 
 describe('createApp', () => {
   it('exige db', () => {
@@ -18,7 +18,7 @@ describe('createApp', () => {
 
   it('JSON malformado → 400 VALIDATION_ERROR', async () => {
     const { app } = makeApp();
-    const res = await request(app).post('/api/orders').set('Content-Type', 'application/json').send('{"a":');
+    const res = await request(app).post('/api/orders').set(bearer()).set('Content-Type', 'application/json').send('{"a":');
     assert.equal(res.status, 400);
     assert.equal(res.body.error.code, 'VALIDATION_ERROR');
   });
@@ -26,7 +26,7 @@ describe('createApp', () => {
   it('corpo JSON de 21 kb → 413 VALIDATION_ERROR', async () => {
     const { app } = makeApp();
     const body = JSON.stringify({ a: 'x'.repeat(21 * 1024) });
-    const res = await request(app).post('/api/orders').set('Content-Type', 'application/json').send(body);
+    const res = await request(app).post('/api/orders').set(bearer()).set('Content-Type', 'application/json').send(body);
     assert.equal(res.status, 413);
     assert.equal(res.body.error.code, 'VALIDATION_ERROR');
   });

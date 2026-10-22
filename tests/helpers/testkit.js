@@ -1,4 +1,5 @@
 // Monta app de integração e payloads válidos.
+import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { createFakeDb, IDS } from './fakeDb.js';
 import { fixedNow, SUNDAY_20H } from './clock.js';
@@ -7,15 +8,34 @@ export { IDS };
 
 export const ADMIN_EMAILS = ['dono@barao.com', 'gerente@barao.com'];
 
+// Clientes de teste. A e B têm perfil; NEW está autenticado mas SEM perfil (primeiro acesso).
+export const CUSTOMER_A = { token: 'token-cliente-a', id: '00000000-0000-4000-8000-0000000000a1', email: 'joao@cliente.com' };
+export const CUSTOMER_B = { token: 'token-cliente-b', id: '00000000-0000-4000-8000-0000000000b1', email: 'bia@cliente.com' };
+export const CUSTOMER_NEW = { token: 'token-cliente-novo', id: '00000000-0000-4000-8000-0000000000c1', email: 'novo@cliente.com' };
+const CUSTOMERS = [CUSTOMER_A, CUSTOMER_B, CUSTOMER_NEW];
+const PROFILES = {
+  [CUSTOMER_A.id]: { name: 'João Silva', phone: '85999999999' },
+  [CUSTOMER_B.id]: { name: 'Bia Costa', phone: '85988887777' },
+};
+
+/** Cabeçalho Authorization de um cliente (padrão: CUSTOMER_A). */
+export const bearer = (customer = CUSTOMER_A) => ({ Authorization: `Bearer ${customer.token}` });
+
 /**
  * App de integração com fakeDb e o MESMO relógio nos dois. Padrão: loja aberta (domingo 20:00),
  * rate limit desligado, ADMIN_EMAILS de teste. Tudo via createApp({ db, options }) — sem process.env.
  *   const { app, db } = makeApp({ settings: { storeOverride: 'closed' } });
  *   const { app } = makeApp({ options: { rateLimit: true } }); // só no teste do 429
  */
-export function makeApp({ now = SUNDAY_20H, options = {}, ...dbOverrides } = {}) {
+export function makeApp({ now = SUNDAY_20H, options = {}, users = {}, customers = {}, ...dbOverrides } = {}) {
   const clock = fixedNow(now);
-  const db = createFakeDb({ now: clock, ...dbOverrides });
+  const customerUsers = Object.fromEntries(CUSTOMERS.map((c) => [c.token, { id: c.id, email: c.email }]));
+  const db = createFakeDb({
+    now: clock,
+    ...dbOverrides,
+    users: { ...customerUsers, ...users },
+    customers: { ...PROFILES, ...customers },
+  });
   const app = createApp({
     db,
     options: {
@@ -48,4 +68,9 @@ export function validOrder(overrides = {}) {
     ],
     ...overrides,
   };
+}
+
+/** POST /api/orders autenticado como um cliente (padrão: CUSTOMER_A). */
+export function postOrder(app, body, { customer = CUSTOMER_A } = {}) {
+  return request(app).post('/api/orders').set(bearer(customer)).send(body);
 }
