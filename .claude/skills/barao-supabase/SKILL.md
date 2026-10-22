@@ -45,11 +45,19 @@ O que a 0001 cria: tabelas do contrato + checks (endereço obrigatório se `deli
 | `deleteProduct(id)` | `true` (removido) / `false` (não existe); **lança** `AppError('PRODUCT_HAS_ORDERS', 409, ...)` se existir `order_items` com `product_ids @> array[id]` |
 | `setProductAvailability(id, available)` | `Product \| null` |
 | `uploadProductImage(id, { buffer, contentType })` | `Product \| null` com `imageUrl` pública |
-| `getUserByAccessToken(token)` | `{ id, email } \| null` (usado por `requireAdmin`) |
+| `getUserByAccessToken(token)` | `{ id, email } \| null` (usado por `requireAdmin` e `requireCustomer`) |
+| `getCustomer(userId)` | `{ name, phone } \| null` (perfil do cliente) |
+| `upsertCustomer(userId, { name, phone })` | `{ name, phone }` (cria ou atualiza) |
+| `listAddresses(userId)` | `Address[]` (padrão primeiro, depois mais recentes) |
+| `createAddress(userId, data)` | `Address` (o primeiro vira padrão) |
+| `updateAddress(userId, id, data)` | `Address \| null` (null se não for do cliente) |
+| `deleteAddress(userId, id)` | `true` / `false`; se era o padrão, o mais recente vira padrão |
+| `setDefaultAddress(userId, id)` | `Address \| null` (desmarca o anterior na mesma operação) |
+| `deleteCustomerAccount(userId)` | apaga perfil, endereços e o usuário no Auth; pedidos ficam com `customer_id = null` |
 
 `Product = { id, categoryId, kind, name, description, priceCents, imageUrl, available, sortOrder, addonGroup }` — `addonGroup` (`addon_group text null`, check `addon_group is null or kind = 'addon'`): `'borda'` nas duas bordas, `null` no resto. Addons do mesmo grupo são mutuamente exclusivos na pizza (regra aplicada no `pricing.service`, não no SQL).
 `Order = { id, code, status, createdAt, customer: { name, phone }, fulfillment, address \| null, payment: { method, changeForCents }, notes, subtotalCents, items: [{ id, kind, description, productIds, flavorNames, addons: [{ name, priceCents }], baseUnitCents, unitPriceCents, quantity, notes, lineTotalCents }] }`
-`draft` de `createOrder`: ver `barao-pedido-whatsapp` (`customer`, `fulfillment`, `address`, `payment`, `notes`, `subtotalCents`, `items` precificados).
+`Address = { id, label, street, number, district, reference, isDefault }`. `draft` de `createOrder` aceita também `customerId` (grava `orders.customer_id`); ver `barao-pedido-whatsapp` (`customer`, `fulfillment`, `address`, `payment`, `notes`, `subtotalCents`, `items` precificados).
 
 Código de referência completo (client, mappers, todos os repos, `createRepository`): [reference/repositories.md](reference/repositories.md).
 
