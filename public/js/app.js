@@ -1,4 +1,5 @@
 // Orquestrador do front do cliente: carrega dados, liga módulos. Sem regra de negócio.
+import { initAccount } from './account.js';
 import { getMenu, getStatus } from './api.js';
 import * as auth from './auth.js';
 import { initAuthDialog } from './auth-dialog.js';
@@ -81,8 +82,10 @@ export const account = {
   loadMe,
 };
 
+const accountUi = initAccount({ dialog: $('#account-modal'), account, auth, toast });
+
 accountButton.addEventListener('click', () => {
-  if (accountButton.dataset.logged === 'true') gate.run(() => {}); // T12 troca por abrir "Minha conta"
+  if (accountButton.dataset.logged === 'true') accountUi.open();
   else account.openLogin();
 });
 if (auth.hasStoredSession()) {
