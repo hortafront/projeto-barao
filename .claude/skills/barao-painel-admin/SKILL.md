@@ -25,6 +25,13 @@ Rotas e formatos da API: skill `barao-api-express` (autoridade). Validação de 
 9. Datas/horas exibidas e filtros calculados em `America/Fortaleza`.
 10. Páginas com `<meta name="robots" content="noindex">`; nenhum `<script>` inline (CSP).
 
+## Aba Combos (`public/admin/js/combos.js`)
+Rotas (`requireAdmin`): `GET /api/admin/combos` → `{ combos }`; `POST` → 201 `{ combo }`; `PUT /:id` → `{ combo }` (substitui as vagas); `DELETE /:id` → 204; `PATCH /:id/availability` `{ available }`; `POST /:id/image` (multipart `image`, jpeg/png/webp, 2 MB). Corpo: `{ name, description?, priceCents, weekdays, slots: [{ label, kind, productIds }] }`.
+- Faixa no topo: "Hoje aparece: {combo}" ou "Nenhum combo hoje" (dia em `America/Fortaleza`). Lista: foto, nome, preço, dias ("Ter · Qui"), Esgotado, Editar, Excluir.
+- Formulário: nome, descrição (≤ 200), preço em reais (`parseBRLToCents`), 7 caixas Dom–Sáb (dia de outro combo desabilitado com o nome dele), 1–4 vagas (rótulo 2–40, tipo pizza/bebida, produtos permitidos com atalhos "Marcar todas as Clássicas/Especiais/Bebidas", subir/descer/remover), foto (2 passos: POST/PUT e depois `/image` com o `id`).
+- Erros: dia já usado → 400 "Já existe um combo na {dia}: {nome}." (`details` em `weekdays`); produto de tipo errado na vaga → 400; excluir combo com pedido → 409 `PRODUCT_HAS_ORDERS`: oferecer "Marcar como esgotado".
+- Pedidos mostram o item combo como na mensagem do WhatsApp; o Resumo conta o combo pelo nome.
+
 ## Configuração do cliente Supabase
 URL e ANON key são buscadas de `GET /api/admin-config` → `{ supabaseUrl, supabaseAnonKey }` (rota pública, fora do
 `requireAdmin`, lê `SUPABASE_URL`/`SUPABASE_ANON_KEY` do env). A CSP precisa liberar `script-src https://cdn.jsdelivr.net`

@@ -82,6 +82,15 @@ Ref.: perto da praça
 ```
 Regras de linha (o exemplo do contrato manda): linha principal da pizza = `baseUnitCents × quantity` (sabor mais caro, **sem** addons); cada addon em linha própria `   + <nome> — R$ (priceCents × quantity)`. A soma das linhas exibidas de um item bate com `lineTotalCents` (= `unitPriceCents × quantity`), mas nenhuma linha mostra "unitário + addons". Bebida = `lineTotalCents` (= `baseUnitCents × quantity`). Separador é travessão `—` (U+2014) com espaços. Indentação de 3 espaços.
 Variações: retirada → `*Retirada no balcão*` no lugar de `*Entrega:*`/`Ref.:` e **sem** a linha `_Taxa de entrega a combinar_`; `*Pagamento:* Pix`; `*Pagamento:* Cartão (maquininha)`; `*Pagamento:* Dinheiro` (sem troco); sem `Ref.:` se vazio; sem `*Observações:*` se vazio; sem `Obs.:` no item se vazio. Pizza inteira: `1x Pizza Calabresa — R$ 30,49`. Meio a meio: `1x Pizza meio a meio: Calabresa / Frango — R$ 34,99`.
+Combo do dia (`kind: 'combo'`): linha principal `{qtd}x {nome do combo} — R$ (baseUnitCents × quantity)` (`baseUnitCents` = preço do combo); depois, **na ordem das vagas**, cada escolha em `   • {description}` (sem preço) e, logo abaixo da pizza, seus adicionais `   + {nome} — R$ (priceCents × quantity)` (assim a cozinha sabe em qual pizza vai a borda); `   Obs.: {notes}` por último, só se houver. Exemplo:
+```
+1x Combo Clássico — R$ 36,90
+   • Pizza meio a meio: Calabresa / Mussarela
+   + Borda Recheada com Catupiry — R$ 4,50
+   • Coca-Cola 1 Litro
+   Obs.: sem cebola
+```
+A soma dos valores do bloco = `lineTotalCents`. Os dados vêm de `item.choices` (`[{ label, kind, description, addons }]`), que no banco é `order_items.combo_choices`; o pedido regenerado do banco usa `combo_choices`.
 Os campos usados (`description`, `quantity`, `baseUnitCents`, `addons[{ name, priceCents }]`, `lineTotalCents`, `notes`) estão no snapshot de `order_items` (`base_unit_cents`, `addons` jsonb), então a mensagem pode ser **regenerada a partir do banco** (`db.getOrderById(id)` → `buildOrderMessage(order)`).
 
 Implementação de referência completa (com `formatPhoneBR`, `buildOrderMessage`, `buildWhatsAppUrl`) e testes de exemplo: [reference/whatsapp.service.md](reference/whatsapp.service.md).
