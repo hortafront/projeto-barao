@@ -237,3 +237,4 @@ input[type="checkbox"], input[type="radio"] { width: 24px; height: 24px; accent-
 .combo-products legend { padding: 0 var(--space-2); color: var(--color-text-muted); }
 .combo-products .form-row { margin-bottom: 0; min-height: var(--tap-min); }
 .combo-slot .btn, .combo-slots + .btn { min-height: var(--tap-min); }
+.order-items__sub { padding-left: var(--space-4); }
