@@ -49,7 +49,7 @@ Um combo tem de **1 a 4 vagas**. Cada vaga vale **um** item.
 ### 2.3 `order_items`
 - `kind` passa a aceitar `'combo'`.
 - Colunas novas: `combo_id uuid null references combos(id) on delete restrict` e `combo_choices jsonb null`.
-- `combo_choices` (snapshot, só em combo): `[{ "label", "kind", "description", "addons": [{ "name", "priceCents" }] }]` na ordem das vagas. `description` de pizza segue o padrão atual ("Pizza inteira: Calabresa" / "Pizza meio a meio: Calabresa / Mussarela"); de bebida, o nome do produto.
+- `combo_choices` (snapshot, só em combo): `[{ "label", "kind", "description", "addons": [{ "name", "priceCents" }] }]` na ordem das vagas. `description` de pizza segue o padrão atual ("Pizza Calabresa" / "Pizza meio a meio: Calabresa / Mussarela"); de bebida, o nome do produto.
 - Em combo: `description` = nome do combo; `product_ids` = todos os produtos escolhidos + adicionais (mantém a checagem de `PRODUCT_HAS_ORDERS`); `flavor_names` null; `addons` = lista achatada de todos os adicionais do combo; `base_unit_cents` = preço do combo; `unit_price_cents` = base + adicionais; `line_total_cents` = unit × quantity.
 - A constraint `order_items_kind_shape` é recriada incluindo o caso `combo` (`combo_id` e `combo_choices` não nulos; nos outros kinds, ambos nulos).
 - `create_order(payload jsonb)` é redefinida para gravar `combo_id` e `combo_choices` (mesma assinatura, grants e comportamento atuais, incluindo `position` e `customer_id`).
@@ -103,7 +103,9 @@ Loja fechada, login obrigatório, limites do pedido (1..30 itens, quantity 1..20
 - Gravação de combo + vagas atômica (rpc ou transação no repositório).
 
 ### 3.4 Repositório (`db`) — Supabase e `fakeDb` com a mesma interface
-`getTodayCombo(weekday)`, `listCombos()`, `getCombo(id)`, `createCombo(data)`, `updateCombo(id, data)`, `deleteCombo(id)`, `setComboAvailability(id, available)`, `setComboImage(id, url)`. `createOrder` grava `comboId`/`comboChoices`.
+`getTodayCombo(weekday)`, `listCombos()`, `getCombo(id)`, `getCombosByIds(ids)`, `createCombo(data)`, `updateCombo(id, data)`, `deleteCombo(id)`, `setComboAvailability(id, available)`, `uploadComboImage(id, { buffer, contentType })` (mesmo padrão de `uploadProductImage`). `createOrder` grava `comboId`/`choices` (colunas `combo_id`/`combo_choices`).
+
+Produto excluído que ainda está numa vaga: ao servir o combo (cardápio e painel), ids inexistentes são filtrados; se alguma vaga ficar sem nenhum produto disponível, o cardápio serve o combo com `available: false`.
 
 ## 4. Front do cliente
 
