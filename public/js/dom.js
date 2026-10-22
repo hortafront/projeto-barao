@@ -80,7 +80,8 @@ export function openDialog(dialog, { onClose, initialFocus } = {}) {
   const close = () => { if (dialog.open) dialog.close(); };
   dialog.addEventListener('close', () => {
     listeners.abort();
-    document.body.classList.remove('is-locked');
+    // só destrava se não sobrou outro modal aberto por baixo (ex.: login sobre o checkout)
+    if (!document.querySelector('dialog[open]')) document.body.classList.remove('is-locked');
     onClose?.();
     if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
   }, { once: true });
