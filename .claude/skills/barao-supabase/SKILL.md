@@ -49,8 +49,8 @@ O que a 0001 cria: tabelas do contrato + checks (endereço obrigatório se `deli
 | `getCustomer(userId)` | `{ name, phone } \| null` (perfil do cliente) |
 | `upsertCustomer(userId, { name, phone })` | `{ name, phone }` (cria ou atualiza) |
 | `listAddresses(userId)` | `Address[]` (padrão primeiro, depois mais recentes) |
-| `createAddress(userId, data)` | `Address` (o primeiro vira padrão) |
-| `updateAddress(userId, id, data)` | `Address \| null` (null se não for do cliente) |
+| `createAddress(userId, data)` | `Address` (só vira padrão com `data.isDefault === true`; o "primeiro endereço vira padrão" é regra do `customer.service`) |
+| `updateAddress(userId, id, data)` | `Address \| null` (null se não for do cliente; honra `isDefault: true`, tornando-o o padrão) |
 | `deleteAddress(userId, id)` | `true` / `false`; se era o padrão, o mais recente vira padrão |
 | `setDefaultAddress(userId, id)` | `Address \| null` (desmarca o anterior na mesma operação) |
 | `deleteCustomerAccount(userId)` | apaga perfil, endereços e o usuário no Auth; pedidos ficam com `customer_id = null` |

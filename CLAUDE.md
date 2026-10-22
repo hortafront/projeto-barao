@@ -15,7 +15,7 @@ valida, **recalcula o preço** e salva, e o front abre o WhatsApp da loja com a 
   (sem dotenv); em produção as variáveis vêm do host.
 - Front: HTML/CSS/JS vanilla, ES modules nativos, **sem bundler, sem framework, sem framework CSS**, mobile-first.
 - Testes: `node:test` + `node:assert/strict` + `supertest`.
-- Supabase: Postgres + Auth (login admin email/senha) + Storage (bucket `product-images`, leitura pública).
+- Supabase: Postgres + Auth (login do admin e do cliente, email/senha) + Storage (bucket `product-images`, leitura pública).
 
 ## Comandos
 ```bash
@@ -52,10 +52,10 @@ public/css/                  base.css, menu.css, cart.css, admin.css
 public/js/dom.js             helper de criação de DOM seguro (textContent/createElement)
 public/js/api.js             fetch para /api/* + tratamento do formato de erro
 public/js/cart.js            carrinho em localStorage `barao:cart:v1` (só ids e quantidades)
-public/js/                   app.js, menu.js, product-modal.js, checkout.js
+public/js/                   app.js, menu.js, product-modal.js, checkout.js, order-payload.js; conta do cliente: auth.js (sessão), customer-api.js,
+                             login-gate.js, auth-dialog.js, account.js (Minha conta), nova-senha.js
 public/img/                  imagens estáticas (logo, mascote)
 public/admin/                index.html (login), painel.html, js/
-public/js/                   também: auth.js (sessão do cliente), customer-api.js, login-gate.js, auth-dialog.js, account.js (Minha conta)
 public/conta/nova-senha.html recuperação de senha do cliente
 shared/money.js              formatBRL(cents), parseBRLToCents — puro, servido em /shared
 shared/pricing.js            calcPizzaUnitCents, calcItemCents, calcOrderSubtotalCents — puro, servido em /shared
@@ -81,9 +81,9 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 - `createApp({ db, options })` recebe o repositório por injeção: produção passa o repo Supabase, testes passam fake em memória.
   `options = { now, rateLimit, adminEmails, corsOrigin, supabaseUrl, supabaseAnonKey, timeZone, isProduction, trustProxy }`
   (default de cada um vem do env).
-- O browser **nunca** fala direto com o Supabase. Única exceção: autenticação (`signInWithPassword` do admin; cadastro/login/recuperação de senha do cliente, sessão `barao-cliente-auth`) (supabase-js via
-  CDN ESM + ANON key; URL e key vêm da rota pública `GET /api/admin-config` → `{ supabaseUrl, supabaseAnonKey }`,
-  fora do `requireAdmin`, cache curto). O token vai em `Authorization: Bearer <token>` para a API; `requireAdmin` valida com
+- O browser **nunca** fala direto com o Supabase. Única exceção: a autenticação (login do admin; cadastro, login e recuperação de senha do cliente, sessão `barao-cliente-auth`),
+  feita com supabase-js via CDN ESM + ANON key; URL e key vêm da rota pública `GET /api/admin-config` → `{ supabaseUrl, supabaseAnonKey }`,
+  fora do `requireAdmin`, cache curto. O token vai em `Authorization: Bearer <token>` para a API; `requireAdmin` valida com
   `supabase.auth.getUser(token)` e checa `ADMIN_EMAILS` (401 sem token/inválido, 403 e-mail fora da lista).
 - RLS ligado em todas as tabelas, sem policies para anon: todo dado de negócio passa pela API Express.
 
@@ -146,7 +146,7 @@ tests/integration/           rotas via supertest + createApp({ db: fakeRepo, opt
 
 ## Segurança
 - `SUPABASE_SERVICE_ROLE_KEY` **só no servidor**; nunca em `public/`, nunca em log, nunca em resposta.
-- `helmet` com CSP: só `self` + Google Fonts + `https://cdn.jsdelivr.net` (script do supabase-js no admin) +
+- `helmet` com CSP: só `self` + Google Fonts + `https://cdn.jsdelivr.net` (script do supabase-js no admin e no login do cliente) +
   origem de `SUPABASE_URL` em `connect-src`/`img-src` (login do admin e imagens do bucket).
 - CORS restrito a `CORS_ORIGIN`. `express.json({ limit: '20kb' })`.
 - Rate limit: `POST /api/orders` 10 req / 10 min por IP (resposta 429 `RATE_LIMITED`); também nas rotas admin e em `/api/me` (300 req / 15 min).
