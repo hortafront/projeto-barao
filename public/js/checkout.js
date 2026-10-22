@@ -149,7 +149,7 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
   function openCheckout(current) {
     if (checkoutDialog.open || cart.count() === 0) return;
     drawerNotice = '';
-    if (!submitting) { me = current; paintCheckout(); } //envio em andamento: reabre o mesmo formulário, sem novo POST
+    if (!submitting) { me = current; paintCheckout(); } // envio em andamento: reabre o mesmo formulário, sem novo POST
     closeCheckoutFn = openDialog(checkoutDialog, {
       onClose: () => { closeCheckoutFn = null; },
       initialFocus: checkoutDialog.querySelector('input'),
@@ -328,7 +328,7 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
     ensureCheckoutOpen();
     cart.clear(); // dispara refresh via subscribe
     // Guardar o endereço é um extra: roda em segundo plano e uma falha não afeta o pedido.
-    if (save) Promise.resolve(account.customerApi('/api/me/addresses', { method: 'POST', body: save })).catch(() => {});
+    if (save) Promise.resolve().then(() => account.customerApi('/api/me/addresses', { method: 'POST', body: save })).catch(() => {});
     const link = el('a', { class: 'btn btn--primary btn--block', href: data.whatsappUrl, rel: 'noopener' }, 'Abrir WhatsApp');
     render(checkoutDialog, el('div', { class: 'sheet sheet--confirm' },
       el('div', { class: 'sheet__body confirm' },
@@ -355,11 +355,22 @@ export function initCheckout({ cart, getProductsById, getStatus, reloadMenu, onS
     }
   }
 
+  // Após novo login: se for OUTRA conta, troca `me` e repinta o formulário (senão iria o endereço salvo da conta antiga).
+  async function reloginThenSync() {
+    try {
+      if (!(await account.openLogin())) return;
+      const fresh = await account.loadMe();
+      if (!fresh || fresh.email === me?.email) return; // mesma conta: formulário intacto
+      me = fresh;
+      if (!submitting && checkoutDialog.open) paintCheckout();
+    } catch { /* o cliente pode tentar de novo */ }
+  }
+
   async function handleFailure(error, formError) {
     const say = (text) => { formError.textContent = text; formError.hidden = false; formError.scrollIntoView?.({ block: 'nearest' }); };
     if (error.code === 'UNAUTHORIZED') {
       say(SESSION_TEXT);
-      Promise.resolve(account.openLogin()).catch(() => {}); // o checkout fica aberto, formulário intacto
+      reloginThenSync();
       return;
     }
     if (error.code === 'VALIDATION_ERROR' && Array.isArray(error.details) && error.details.some((d) => d.path === 'profile')) {
