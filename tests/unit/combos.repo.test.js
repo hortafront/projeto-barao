@@ -20,7 +20,7 @@ const INPUT = {
 /** Stub encadeável (mesmo padrão de customers.repo.test.js); `result` por origem: { from, rpc, count }. */
 function stub(result = { data: null, error: null }) {
   const calls = [];
-  const pick = (root) => (result.from || result.rpc ? result[root] : result);
+  const pick = (root) => (result.seq ? result.seq.shift() : result.from || result.rpc ? result[root] : result);
   const chain = (root) => new Proxy({}, {
     get(_, prop) {
       if (prop === 'then') return (res, rej) => Promise.resolve(pick(root)).then(res, rej);
@@ -109,6 +109,16 @@ test('deleteCombo sem pedidos apaga e remove a imagem; inexistente -> false', as
   assert.ok(has(s.calls, 'remove', ['combos/c1-1.webp']));
   s = stub({ data: [], count: 0, error: null });
   assert.equal(await createCombosRepo(s.supabase).deleteCombo('c1'), false);
+});
+
+test('deleteCombo: violação de FK (23001/23503) vira PRODUCT_HAS_ORDERS; outro erro segue INTERNAL', async () => {
+  for (const code of ['23001', '23503']) {
+    const s = stub({ seq: [{ count: 0, error: null }, { data: null, error: { code, message: 'fk' } }] });
+    await assert.rejects(createCombosRepo(s.supabase).deleteCombo('c1'), (e) => e.code === 'PRODUCT_HAS_ORDERS'
+      && e.status === 409 && e.message === 'Combo já tem pedidos; marque como esgotado em vez de excluir');
+  }
+  const s = stub({ seq: [{ count: 0, error: null }, { data: null, error: { code: '42501', message: 'x' } }] });
+  await assert.rejects(createCombosRepo(s.supabase).deleteCombo('c1'), (e) => e.code === 'INTERNAL');
 });
 
 test('setComboAvailability atualiza available', async () => {
