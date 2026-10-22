@@ -163,6 +163,7 @@ async function load({ fresh = false } = {}) {
       getStatus,
       reloadMenu: () => load({ fresh: true }),
       onStoreClosed: refreshStatus,
+      account,
     });
   }
   checkout.refresh();
