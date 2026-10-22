@@ -145,20 +145,22 @@ export async function mount(container, ctx) {
   }
 
   async function removeCombo(combo, button) {
-    const ok = await confirmDialog({
-      title: `Excluir ${combo.name}?`,
-      body: 'O combo some do cardápio. Isso não pode ser desfeito.',
-      confirmLabel: 'Excluir', danger: true,
-    });
-    if (!ok) return;
+    if (button.disabled) return;
+    button.disabled = true; // trava durante confirmação + requisição
     try {
-      await adminApi(`/api/admin/combos/${combo.id}`, { method: 'DELETE' });
+      const ok = await confirmDialog({
+        title: `Excluir ${combo.name}?`,
+        body: 'O combo some do cardápio. Isso não pode ser desfeito.',
+        confirmLabel: 'Excluir', danger: true,
+      });
+      if (!ok) return;
+      await withSaving(button, () => adminApi(`/api/admin/combos/${combo.id}`, { method: 'DELETE' }), { toast });
       combos = combos.filter((c) => c.id !== combo.id);
       showList();
-      toast('Combo excluído', 'success');
-    } catch (err) {
-      // 409 PRODUCT_HAS_ORDERS: mostra a mensagem do servidor (marcar como esgotado em vez de excluir)
-      toast(err.message, 'error');
+    } catch {
+      // withSaving já avisou (409 PRODUCT_HAS_ORDERS mostra a mensagem do servidor)
+    } finally {
+      button.disabled = false;
     }
   }
 
@@ -337,29 +339,33 @@ export async function mount(container, ctx) {
         price.focus();
         return;
       }
-      let saved;
+      let finalCombo = combo;
+      let stage = 'save';
       try {
-        saved = await withSaving(save, () => adminApi(
-          isNew ? '/api/admin/combos' : `/api/admin/combos/${combo.id}`,
-          { method: isNew ? 'POST' : 'PUT', body },
-        ), { toast });
+        // um único withSaving: o botão fica travado do salvar até o fim do upload
+        await withSaving(save, async () => {
+          const saved = await adminApi(
+            isNew ? '/api/admin/combos' : `/api/admin/combos/${combo.id}`,
+            { method: isNew ? 'POST' : 'PUT', body },
+          );
+          finalCombo = saved?.combo ?? { ...combo, ...body };
+          const chosen = file.files[0];
+          if (chosen) {
+            stage = 'image';
+            const data = new FormData();
+            data.append('image', chosen);
+            const uploaded = await adminApi(`/api/admin/combos/${finalCombo.id}/image`, { method: 'POST', body: data });
+            finalCombo = uploaded?.combo ?? finalCombo;
+          }
+        }, { toast });
       } catch (err) {
-        showServerErrors(err);
-        return;
-      }
-      let finalCombo = saved?.combo ?? { ...combo, ...body };
-      const chosen = file.files[0];
-      if (chosen) {
-        try {
-          const data = new FormData();
-          data.append('image', chosen);
-          const uploaded = await withSaving(save, () => adminApi(`/api/admin/combos/${finalCombo.id}/image`, { method: 'POST', body: data }), { toast });
-          finalCombo = uploaded?.combo ?? finalCombo;
-        } catch {
-          upsert(finalCombo);
-          if (isNew) showForm(finalCombo); // combo já existe: segue em edição para tentar a foto de novo
+        if (stage === 'save') {
+          showServerErrors(err);
           return;
         }
+        upsert(finalCombo);
+        if (isNew) showForm(finalCombo); // combo já existe: segue em edição para tentar a foto de novo
+        return;
       }
       upsert(finalCombo);
       showList();

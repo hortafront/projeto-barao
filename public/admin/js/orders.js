@@ -44,7 +44,6 @@ export function formatTimeFortaleza(iso) {
   return timeFmt.format(new Date(iso));
 }
 
-/** Anexa a página seguinte sem repetir pedidos já listados (a paginação é por deslocamento). */
 /**
  * Linhas sob o título do item: [{ text, sub }]. Combo segue a mensagem do WhatsApp
  * (`• escolha` e `+ adicional` sob a escolha); `sub` = recuado.
@@ -65,6 +64,7 @@ export function itemDetailLines(item) {
   return lines;
 }
 
+/** Anexa a página seguinte sem repetir pedidos já listados (a paginação é por deslocamento). */
 export function mergeOrderPages(current, incoming) {
   const seen = new Set(current.map((o) => o.id));
   const list = [...current];
