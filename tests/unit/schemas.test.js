@@ -223,6 +223,26 @@ test('comboInputSchema: vaga sem produtos ou com ids repetidos falha', () => {
   assert.equal(comboInputSchema.safeParse(comboBody({ slots: [{ label: 'Pizza 1', kind: 'pizza', productIds: [U(1), U(1)] }] })).success, false);
 });
 
+test('comboInputSchema: vaga não-objeto e corpo nulo dão mensagem PT-BR', () => {
+  const r = comboInputSchema.safeParse(comboBody({ slots: [null] }));
+  assert.equal(r.success, false);
+  assert.equal(firstMsg(r), 'Vaga inválida.');
+  assert.deepEqual(r.error.issues[0].path, ['slots', 0]);
+  const s = comboInputSchema.safeParse(comboBody({ slots: ['a'] }));
+  assert.equal(firstMsg(s), 'Vaga inválida.');
+  const n = comboInputSchema.safeParse(null);
+  assert.equal(n.success, false);
+  assert.equal(firstMsg(n), 'Dados inválidos.');
+});
+test('comboInputSchema: description null vira "" e 8 dias dão um só erro', () => {
+  const r = comboInputSchema.safeParse(comboBody({ description: null }));
+  assert.equal(r.success, true);
+  assert.equal(r.data.description, '');
+  const e = comboInputSchema.safeParse(comboBody({ weekdays: [0, 1, 2, 3, 4, 5, 6, 0] }));
+  assert.equal(e.success, false);
+  assert.equal(e.error.issues.length, 1);
+});
+
 const comboItem = (over = {}) => ({
   kind: 'combo', comboId: U(9), quantity: 2,
   slots: [{ kind: 'pizza', flavorIds: [U(1), U(2)], addonIds: [U(5)] }, { kind: 'drink', productId: U(3) }],

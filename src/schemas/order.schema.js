@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const uuid = z.string({ message: 'Item inválido.' }).uuid('Item inválido.');
 const QTY_MSG = 'Quantidade deve ser entre 1 e 20.';
 const quantity = z.number({ message: QTY_MSG }).int(QTY_MSG).min(1, QTY_MSG).max(20, QTY_MSG);
-export const distinct =(arr) => new Set(arr).size === arr.length;
+export const distinct = (arr) => new Set(arr).size === arr.length;
 
 // Texto livre: troca surrogates soltos por U+FFFD antes de validar, depois aplica trim e limites.
 // Limites contam code points (como char_length do Postgres), não unidades UTF-16.

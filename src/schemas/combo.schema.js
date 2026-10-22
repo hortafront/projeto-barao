@@ -7,19 +7,19 @@ const slotSchema = z.object({
   productIds: z.array(uuid, { message: 'Escolha os produtos da vaga.' })
     .min(1, 'Escolha pelo menos um produto por vaga.')
     .refine(distinct, 'Produtos repetidos na vaga.'),
-});
+}, { message: 'Vaga inválida.' });
 
 // Body do admin (POST/PUT). position = índice em slots.
 export const comboInputSchema = z.object({
   name: freeText(2, 60, 'O nome deve ter entre 2 e 60 caracteres.', 'O nome deve ter entre 2 e 60 caracteres.'),
   description: freeText(0, 200, 'A descrição deve ter no máximo 200 caracteres.', 'A descrição deve ter no máximo 200 caracteres.')
-    .optional().transform((v) => v ?? ''),
+    .nullish().transform((v) => v ?? ''),
   priceCents: z.number({ message: 'Preço inválido.' }).int('Preço inválido.').positive('Preço inválido.').max(1_000_000, 'Preço inválido.'),
   weekdays: z.array(
     z.number({ message: 'Dia da semana inválido.' }).int('Dia da semana inválido.').min(0, 'Dia da semana inválido.').max(6, 'Dia da semana inválido.'),
     { message: 'Escolha pelo menos um dia da semana.' },
-  ).min(1, 'Escolha pelo menos um dia da semana.').max(7, 'Dia da semana inválido.').refine(distinct, 'Dias da semana repetidos.'),
+  ).min(1, 'Escolha pelo menos um dia da semana.').refine(distinct, 'Dias da semana repetidos.'),
   slots: z.array(slotSchema, { message: 'Monte as vagas do combo.' })
     .min(1, 'O combo precisa de pelo menos 1 vaga.')
     .max(4, 'No máximo 4 vagas.'),
-});
+}, { message: 'Dados inválidos.' });
