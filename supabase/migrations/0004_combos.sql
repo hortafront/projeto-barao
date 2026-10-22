@@ -2,6 +2,8 @@
 -- Aplicar depois de 0001, 0002 e 0003. Todo acesso é pelo service role no servidor.
 -- "Um combo por dia" é regra do service; o banco não impõe.
 
+begin;
+
 -- ---------------------------------------------------------------------------
 -- weekdays_valid: 1..7 valores, todos 0..6 (0 = domingo), sem repetidos.
 -- (check não aceita subselect; por isso a função immutable)
@@ -12,6 +14,7 @@ language sql
 immutable
 as $$
   select p_days is not null
+     and array_ndims(p_days) = 1
      and cardinality(p_days) between 1 and 7
      and not exists (select 1 from unnest(p_days) d where d is null or d not between 0 and 6)
      and (select count(distinct d) from unnest(p_days) d) = cardinality(p_days);
@@ -170,6 +173,11 @@ declare
   v_id       uuid;
   v_weekdays smallint[];
 begin
+  if jsonb_typeof(payload -> 'slots') is distinct from 'array'
+     or jsonb_array_length(payload -> 'slots') not between 1 and 4 then
+    raise exception 'save_combo: informe ao menos uma vaga' using errcode = '22023';
+  end if;
+
   v_weekdays := array(select (value)::smallint from jsonb_array_elements_text(payload -> 'weekdays'));
 
   if p_id is null then
@@ -200,7 +208,7 @@ begin
   insert into public.combo_slots (combo_id, position, label, kind, product_ids)
   select v_id, (s.ord - 1)::smallint, s.slot ->> 'label', s.slot ->> 'kind',
          array(select jsonb_array_elements_text(s.slot -> 'product_ids'))::uuid[]
-    from jsonb_array_elements(coalesce(payload -> 'slots', '[]'::jsonb)) with ordinality as s(slot, ord);
+    from jsonb_array_elements(payload -> 'slots') with ordinality as s(slot, ord);
 
   return v_id;
 end;
@@ -216,3 +224,5 @@ revoke all on public.combos, public.combo_slots from anon, authenticated;
 
 revoke execute on function public.save_combo(uuid, jsonb) from public, anon, authenticated;
 grant  execute on function public.save_combo(uuid, jsonb) to service_role;
+
+commit;
