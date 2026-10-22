@@ -24,6 +24,7 @@ export function createOrdersRepo(supabase) {
           addons: (i.addons ?? []).map((ad) => ({ name: ad.name, priceCents: ad.priceCents })), // jsonb snapshot
           base_unit_cents: i.baseUnitCents, unit_price_cents: i.unitPriceCents, quantity: i.quantity,
           notes: i.notes ?? null, line_total_cents: i.lineTotalCents,
+          combo_id: i.comboId ?? null, combo_choices: i.choices ?? null, // snapshot do combo
         })),
       };
       const { data, error } = await supabase.rpc('create_order', { payload });
