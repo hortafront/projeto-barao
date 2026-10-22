@@ -3,27 +3,14 @@
 // vaga de bebida = rádio. Preço ao vivo = /shared/pricing.js (o servidor recalcula tudo).
 import { calcItemCents } from '/shared/pricing.js';
 import { formatBRL } from '/shared/money.js';
+import { describeComboSlots, describePizza } from './combo-format.js';
 import { el, openDialog, render } from './dom.js';
 import { addonSections, choice, readSelection } from './product-modal.js';
 
 const MAX_QTY = 20;
 const MAX_NOTES = 140;
 
-const nameOf = (productsById, id) => productsById.get(id)?.name ?? 'Item indisponível';
-
-/** Mesma descrição que o servidor grava: "Pizza X" ou "Pizza meio a meio: A / B". */
-export function describePizza(flavorIds, productsById) {
-  return flavorIds.length === 2
-    ? `Pizza meio a meio: ${flavorIds.map((id) => nameOf(productsById, id)).join(' / ')}`
-    : `Pizza ${nameOf(productsById, flavorIds[0])}`;
-}
-
-/** Uma descrição por vaga: pizza ou nome da bebida. */
-export function describeComboSlots(_combo, slots, productsById) {
-  return slots.map((slot) => (slot.kind === 'drink'
-    ? nameOf(productsById, slot.productId)
-    : describePizza(slot.flavorIds, productsById)));
-}
+export { describeComboSlots, describePizza };
 
 function slotComplete(slot, choiceSlot) {
   if (!slot || slot.kind !== choiceSlot.kind) return false;
@@ -185,7 +172,12 @@ export function openComboModal(dialog, combo, { productsById, menu, onAdd } = {}
     const ready = !incomplete && comboSelectionComplete(combo, slots);
     submit.disabled = !ready;
     hint.hidden = ready;
-    livePrice.textContent = formatBRL(comboSelectionCents(combo, slots, lookup, qty));
+    // Adicionais já contam no preço mesmo antes de escolher o sabor.
+    const data = new FormData(form);
+    const priced = combo.slots.map((slot, i) => (slot.kind === 'pizza'
+      ? { kind: 'pizza', flavorIds: [], addonIds: readSelection(slotData(data, i), '').addonIds }
+      : null));
+    livePrice.textContent = formatBRL(comboSelectionCents(combo, priced, lookup, qty));
   }
 
   form.addEventListener('change', update);

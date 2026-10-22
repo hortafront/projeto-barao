@@ -1,7 +1,7 @@
 // Carrinho persistente. Guarda SÓ ids, quantidades, opções e observações — nunca preço nem nome.
 // Preço e nome vêm sempre do /api/menu (via productsById) e são recalculados com /shared/pricing.js.
 import { calcPizzaUnitCents, calcComboUnitCents, calcItemCents, calcOrderSubtotalCents } from '/shared/pricing.js';
-import { describeComboSlots, describePizza } from './combo-modal.js';
+import { describeComboSlots, describePizza } from './combo-format.js';
 
 export const STORAGE_KEY = 'barao:cart:v1';
 export const MAX_LINES = 30;
