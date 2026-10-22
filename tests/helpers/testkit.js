@@ -74,3 +74,15 @@ export function validOrder(overrides = {}) {
 export function postOrder(app, body, { customer = CUSTOMER_A } = {}) {
   return request(app).post('/api/orders').set(bearer(customer)).send(body);
 }
+
+/** Combo padrão de teste: "Combo Clássico", R$ 36,90, quinta (4); pizza clássica + Coca 1L. Sobrescreva o que precisar. */
+export function seedCombo(db, overrides = {}) {
+  return db.createCombo({
+    name: 'Combo Clássico', description: 'Pizza clássica + refrigerante 1L', priceCents: 3690, weekdays: [4],
+    slots: [
+      { label: 'Escolha sua pizza', kind: 'pizza', productIds: [IDS.mista, IDS.calabresa, IDS.mussarela, IDS.marguerita] },
+      { label: 'Escolha o refrigerante', kind: 'drink', productIds: [IDS.coca1l, IDS.coca1lZero] },
+    ],
+    ...overrides,
+  });
+}

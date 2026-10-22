@@ -84,6 +84,9 @@ export function createFakeDb(overrides = {}) {
     orders: [],      // Order[] — inspecione em testes: db.state.orders
     orderSeq: 0,     // espelha a sequence order_code_seq
     productSeq: 0,
+    combos: [],      // Combo[] (com slots) — espelha combos + combo_slots
+    comboSeq: 0,
+    slotSeq: 0,
     users: overrides.users ?? {},
     customers: Object.fromEntries(Object.entries(overrides.customers ?? {}).map(([id, c]) => [id, clone(c)])), // userId -> { name, phone }
     addresses: [],   // { userId, _seq, id, label, street, number, district, reference, isDefault, createdAt, updatedAt }
@@ -107,6 +110,20 @@ export function createFakeDb(overrides = {}) {
     next.updatedAt = now().toISOString();
     Object.assign(p, next);
     return clone(p);
+  };
+
+  // ---- combos (helpers)
+  const findCombo = (id) => state.combos.find((c) => c.id === id);
+  const buildSlots = (slots) => slots.map((s, position) => {
+    state.slotSeq += 1;
+    return { id: uuid(650000 + state.slotSeq), position, label: s.label, kind: s.kind, productIds: [...s.productIds] };
+  });
+  const COMBO_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+  const patchCombo = (id, patch) => {
+    const c = findCombo(id);
+    if (!c) return null;
+    Object.assign(c, patch, { updatedAt: now().toISOString() });
+    return clone(c);
   };
 
   // ---- clientes (helpers). _seq desempata createdAt iguais (relógio fixo): maior = inserido depois.
@@ -164,6 +181,9 @@ export function createFakeDb(overrides = {}) {
       const sum = draft.items.reduce((s, i) => s + i.lineTotalCents, 0);
       if (sum !== draft.subtotalCents) throw new Error('fakeDb: subtotal_cents ≠ soma das linhas');
       if (draft.fulfillment === 'delivery' && !draft.address) throw new Error('fakeDb: entrega sem endereço');
+      for (const i of draft.items) {
+        if (i.comboId && !findCombo(i.comboId)) throw new Error('fakeDb: order_items.combo_id sem combo (FK)');
+      }
       if (draft.customerId && !state.customers[draft.customerId]) throw new Error('fakeDb: customer_id sem perfil (FK)');
 
       state.orderSeq += 1;
@@ -193,6 +213,8 @@ export function createFakeDb(overrides = {}) {
           quantity: i.quantity,
           notes: i.notes ?? null,
           lineTotalCents: i.lineTotalCents,
+          comboId: i.comboId ?? null,     // snapshot do combo (FK restrict em combos)
+          choices: i.choices ? clone(i.choices) : null,
         })),
       };
       state.orders.push(order);
@@ -252,6 +274,47 @@ export function createFakeDb(overrides = {}) {
       const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[contentType];
       const url = `https://fake.supabase.co/storage/v1/object/public/product-images/products/${id}-${now().getTime()}.${ext}`;
       return patchProduct(id, { imageUrl: url });
+    },
+
+    // ---- combos
+    async getTodayCombo(weekday) {
+      return clone(state.combos.find((c) => c.weekdays.includes(weekday)) ?? null); // inclui esgotado
+    },
+    async listCombos() { return clone(state.combos); },
+    async getCombo(id) { return clone(findCombo(id) ?? null); },
+    async getCombosByIds(ids) { return clone(state.combos.filter((c) => ids.includes(c.id))); },
+    async createCombo(input) {
+      state.comboSeq += 1;
+      const stamp = now().toISOString();
+      const c = {
+        id: uuid(600000 + state.comboSeq), name: input.name, description: input.description ?? '',
+        priceCents: input.priceCents, imageUrl: null, weekdays: [...input.weekdays], available: true,
+        slots: buildSlots(input.slots), createdAt: stamp, updatedAt: stamp,
+      };
+      state.combos.push(c);
+      return clone(c);
+    },
+    /** Substitui dados e vagas (como a rpc save_combo); mantém available/imageUrl. */
+    async updateCombo(id, input) {
+      if (!findCombo(id)) return null;
+      return patchCombo(id, {
+        name: input.name, description: input.description ?? '', priceCents: input.priceCents,
+        weekdays: [...input.weekdays], slots: buildSlots(input.slots),
+      });
+    },
+    /** true = removido; false = não existe; lança PRODUCT_HAS_ORDERS se algum item salvo referencia o combo. */
+    async deleteCombo(id) {
+      if (state.orders.some((o) => o.items.some((it) => it.comboId === id))) {
+        throw new AppError('PRODUCT_HAS_ORDERS', 409, 'Combo já tem pedidos; marque como esgotado em vez de excluir');
+      }
+      const before = state.combos.length;
+      state.combos = state.combos.filter((c) => c.id !== id);
+      return state.combos.length < before;
+    },
+    async setComboAvailability(id, available) { return patchCombo(id, { available }); },
+    async uploadComboImage(id, { contentType }) {
+      const url = `https://fake.supabase.co/storage/v1/object/public/product-images/combos/${id}-${now().getTime()}.${COMBO_EXT[contentType]}`;
+      return patchCombo(id, { imageUrl: url });
     },
 
     // ---- auth (real: supabase.auth.getUser(token)); null = token inválido/expirado
